@@ -347,11 +347,12 @@
         roomInfo.textContent = "Комната " + msg.code;
         break;
       case "waiting":
+        if (msg.share_url) shareUrl = msg.share_url;
         if (msg.code) {
           roomCode = msg.code;
           roomInfo.textContent = "Комната " + msg.code;
           lobbyStatus.textContent = "Комната " + msg.code + ": ждём соперника…";
-          if (tg && tg.switchInlineQuery) $("btn-invite").hidden = false;
+          $("btn-invite").hidden = false;
         } else {
           lobbyStatus.textContent = "Ищем соперника…";
         }
@@ -471,12 +472,41 @@
     send({ type: "join", code: randomCode(4) });
   });
 
-  $("btn-invite").addEventListener("click", () => {
+  function inviteLink() {
+    const base = shareUrl || "https://t.me/seablitz_bot";
+    return roomCode
+      ? base + "?startapp=" + encodeURIComponent(roomCode.toUpperCase())
+      : base;
+  }
+
+  function inviteFriend() {
     if (!roomCode) return;
-    if (tg && tg.switchInlineQuery) {
-      tg.switchInlineQuery("blitz-" + roomCode.toUpperCase());
+    const link = inviteLink();
+    const text =
+      "⚔️ Вызываю на морскую дуэль SeaBlitz! Код комнаты: " +
+      roomCode.toUpperCase();
+    Sound.play("select");
+
+    // Telegram: нативный диалог «Поделиться» (выбор чата → отправка ссылки).
+    if (tg && tg.openTelegramLink) {
+      tg.openTelegramLink(
+        "https://t.me/share/url?url=" + encodeURIComponent(link) +
+        "&text=" + encodeURIComponent(text)
+      );
+      return;
     }
-  });
+
+    // Браузер: копируем ссылку-вызов.
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(
+        () => { lobbyStatus.textContent = "Ссылка-вызов скопирована: " + link; },
+        () => { lobbyStatus.textContent = "Ссылка-вызов: " + link; }
+      );
+    } else {
+      lobbyStatus.textContent = "Ссылка-вызов: " + link;
+    }
+  }
+  $("btn-invite").addEventListener("click", inviteFriend);
 
   $("btn-join").addEventListener("click", () => {
     const code = ($("code-input").value || "").trim().toUpperCase();

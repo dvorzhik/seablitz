@@ -5,7 +5,7 @@ import asyncio
 import random
 
 from app.game.match import Match, MatchConfig
-from app.net.rooms import Room
+from app.net.rooms import Conn, Room, RoomManager
 
 
 class FakeWS:
@@ -115,6 +115,20 @@ def test_gate_times_out_without_ready(monkeypatch):
         await asyncio.sleep(0.25)  # гейт должен сам перейти к овертайму
         assert any(m["type"] == "overtime_intro" for m in a.sent)
         room._cancel_timer()
+
+    asyncio.run(scenario())
+
+
+def test_join_by_code_sends_waiting_with_share_url():
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        await manager.join_by_code(ws, "ABCD")
+        assert ws.sent[-1]["type"] == "waiting"
+        assert ws.sent[-1]["code"] == "ABCD"
+        assert ws.sent[-1]["share_url"].startswith("https://t.me/")
+        manager.drop("ABCD")
 
     asyncio.run(scenario())
 

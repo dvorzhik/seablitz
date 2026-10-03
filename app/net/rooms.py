@@ -30,6 +30,11 @@ def make_code(length: int = 4) -> str:
     return "".join(random.choice(string.ascii_uppercase) for _ in range(length))
 
 
+def share_url() -> str:
+    """Публичная ссылка на бота/Mini App (для приглашений)."""
+    return f"https://t.me/{settings.bot_username or 'seablitz_bot'}"
+
+
 async def safe_send(ws: WebSocket, payload: dict) -> None:
     """Отправка, которая не роняет комнату из-за закрытого сокета."""
     try:
@@ -424,7 +429,7 @@ class Room:
     async def _finish_game(self, tiebreak=None) -> None:
         self._cancel_timer()
         self.phase = "finished"
-        share = f"https://t.me/{settings.bot_username or 'seablitz_bot'}"
+        share = share_url()
         for slot, ws in list(self.sockets.items()):
             payload = {
                 "type": "game_over",
@@ -481,13 +486,18 @@ class RoomManager:
         if room.full:
             await room.start()
         else:
-            await safe_send(ws, {"type": "waiting", "code": room.code})
+            await safe_send(
+                ws,
+                {"type": "waiting", "code": room.code, "share_url": share_url()},
+            )
 
     async def enqueue(self, ws: WebSocket) -> Optional[Room]:
         if ws not in self.queue:
             self.queue.append(ws)
         if len(self.queue) < 2:
-            await safe_send(ws, {"type": "waiting", "code": None})
+            await safe_send(
+                ws, {"type": "waiting", "code": None, "share_url": share_url()}
+            )
             return None
         a = self.queue.pop(0)
         b = self.queue.pop(0)
