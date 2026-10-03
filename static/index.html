@@ -22,18 +22,26 @@
     </header>
 
     <section id="lobby" class="screen active">
-      <p class="lead">Морской блиц 5×5 <span class="muted">(1–2 мин)</span></p>
-      <ul class="rules lead-rules">
-        <li><b>Флот:</b> 3 корабля (3, 2 и 1 палуба). Расстановка фиксированная,
-          корабли не касаются даже углами.</li>
-        <li><b>Залп:</b> каждые 10 секунд выбирай 3 клетки и жми «ОГОНЬ!».
-          Не успел — выстрел наугад.</li>
-        <li><b>Цель:</b> потопить вражеский флот быстрее соперника.</li>
-      </ul>
-      <p class="lead">В бой! ⚓</p>
-      <button id="btn-quick" class="primary">⚡ Быстрый бой</button>
+      <div class="hero">
+        <img src="logo.svg" alt="" class="hero-logo" width="76" height="76">
+        <h2 class="hero-title">SeaBlitz</h2>
+        <p class="hero-sub">Морская дуэль 5×5 · 1–2 минуты</p>
+      </div>
+
+      <div class="card">
+        <ul class="rules card-rules">
+          <li><b>Флот:</b> 3 корабля (3, 2 и 1 палуба). Расстановка фиксированная,
+            корабли не касаются даже углами.</li>
+          <li><b>Залп:</b> каждые 10 секунд выбирай 3 клетки и жми «ОГОНЬ!».
+            Не успел — выстрел наугад.</li>
+          <li><b>Цель:</b> потопить вражеский флот быстрее соперника.</li>
+        </ul>
+      </div>
+
+      <button id="btn-quick" class="primary big">⚡ Быстрый бой</button>
       <button id="btn-create">⚔️ Создать вызов</button>
       <button id="btn-invite" class="ghost" hidden>📨 Отправить вызов другу</button>
+
       <div class="row">
         <input id="code-input" placeholder="КОД КОМНАТЫ" maxlength="8" autocomplete="off">
         <button id="btn-join">Войти</button>
