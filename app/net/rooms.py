@@ -581,6 +581,10 @@ class RoomManager:
         return slot
 
     async def join_by_code(self, ws: WebSocket, code: str) -> None:
+        # выход из очереди быстрого поиска, если игрок там был
+        if ws in self.queue:
+            self.queue.remove(ws)
+        self._cancel_search_timer(ws)
         room = self.rooms.get(code)
         if room is None:
             room = Room(code, self)
@@ -641,6 +645,9 @@ class RoomManager:
 
     async def play_bot(self, ws: WebSocket) -> Room:
         """Игра против бота — для тренировки при пустом онлайне."""
+        if ws in self.queue:
+            self.queue.remove(ws)
+        self._cancel_search_timer(ws)
         code = make_code()
         while code in self.rooms:
             code = make_code()

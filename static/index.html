@@ -45,14 +45,14 @@
 
       <button id="btn-bot">🤖 Играть с ботом</button>
 
-      <button id="btn-create" class="primary big">⚔️ Создать вызов</button>
-
       <div class="btn-row">
-        <button id="btn-invite" class="primary" hidden>📨 Отправить вызов</button>
+        <button id="btn-create" class="primary big">⚔️ Создать вызов</button>
         <button id="btn-invite-cancel" class="ghost" hidden>✖ Отменить вызов</button>
       </div>
 
-      <div class="row">
+      <button id="btn-invite" class="primary invite-btn" hidden>📨 Отправить вызов</button>
+
+      <div class="row" hidden>
         <input id="code-input" placeholder="КОД КОМНАТЫ" maxlength="8" autocomplete="off">
         <button id="btn-join">Войти</button>
       </div>
@@ -132,6 +132,13 @@
         <button id="ot-start" class="primary">Начать</button>
       </div>
     </section>
+
+    <div class="waves" aria-hidden="true">
+      <svg viewBox="0 0 1440 200" preserveAspectRatio="none">
+        <path class="w1" d="M0,90 C240,150 480,30 720,80 C960,130 1200,40 1440,90 L1440,200 L0,200 Z"/>
+        <path class="w2" d="M0,120 C240,70 480,160 720,110 C960,60 1200,150 1440,110 L1440,200 L0,200 Z"/>
+      </svg>
+    </div>
   </div>
   <script src="sound.js"></script>
   <script src="app.js"></script>

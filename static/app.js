@@ -26,6 +26,7 @@
   const btnBot = $("btn-bot");
   const btnCreate = $("btn-create");
   const btnInviteCancel = $("btn-invite-cancel");
+  const btnQuick = $("btn-quick");
   const ownBoard = $("own-board");
   const enemyBoard = $("enemy-board");
   const banner = $("banner");
@@ -50,6 +51,7 @@
   let myRematch = false;
   let oppRematch = false;
   let shareUrl = "https://t.me/seablitz_bot";
+  let searching = false;
 
   function showScreen(name) {
     Object.values(screens).forEach((s) => s.classList.remove("active"));
@@ -112,11 +114,16 @@
   function showHint(text) { hintEl.textContent = text; }
   function hideHint() { hintEl.textContent = ""; }
 
-  // Пара «Отправить вызов» + «Отменить вызов» под кнопкой «Создать вызов».
-  function showInvite(on) {
-    $("btn-invite").hidden = !on;
-    btnInviteCancel.hidden = !on;
-    btnCreate.disabled = on;
+  // Состояние лобби: идёт поиск / создана комната -> лишние кнопки тускнеют.
+  function updateLobbyState() {
+    const inRoom = !!roomCode;
+    btnCancel.hidden = !searching;
+    $("btn-invite").hidden = !inRoom;
+    btnInviteCancel.hidden = !inRoom;
+    const busy = inRoom || searching;
+    btnQuick.disabled = busy;
+    btnCreate.disabled = busy;
+    btnBot.disabled = busy;
   }
 
   function resetSelection() {
@@ -376,28 +383,29 @@
   function handleMessage(msg) {
     switch (msg.type) {
       case "joined":
-        btnCancel.hidden = true;
+        searching = false;
         mySlot = msg.slot;
         roomCode = msg.code;
         roomInfo.textContent = "Комната " + msg.code;
+        updateLobbyState();
         break;
       case "waiting":
         if (msg.share_url) shareUrl = msg.share_url;
         if (msg.code) {
+          searching = false;
           roomCode = msg.code;
           roomInfo.textContent = "Комната " + msg.code;
           lobbyStatus.textContent = "Комната " + msg.code + ": ждём соперника…";
-          showInvite(true);
-          btnCancel.hidden = true;
         } else {
+          searching = true;
           roomCode = null;
           lobbyStatus.textContent = "Ищем соперника…";
-          showInvite(false);
-          btnCancel.hidden = false;
         }
+        updateLobbyState();
         break;
       case "search_cancelled":
-        btnCancel.hidden = true;
+        searching = false;
+        updateLobbyState();
         lobbyStatus.textContent = "Поиск отменён.";
         break;
       case "search_timeout":
@@ -408,7 +416,7 @@
       case "left_room":
         roomCode = null;
         roomInfo.textContent = "";
-        showInvite(false);
+        updateLobbyState();
         lobbyStatus.textContent = "Вызов отменён.";
         break;
       case "error":
@@ -510,14 +518,17 @@
   });
 
   $("btn-quick").addEventListener("click", () => {
+    searching = true;
+    updateLobbyState();
     lobbyStatus.textContent = "Ищем соперника…";
     send({ type: "quickmatch" });
   });
 
   btnCancel.addEventListener("click", () => {
-    send({ type: "cancel" });
-    btnCancel.hidden = true;
+    searching = false;
+    updateLobbyState();
     lobbyStatus.textContent = "Поиск отменён.";
+    send({ type: "cancel" });
   });
 
   btnBot.addEventListener("click", () => {
@@ -526,9 +537,11 @@
   });
 
   btnInviteCancel.addEventListener("click", () => {
-    send({ type: "leave_room" });
-    showInvite(false);
+    roomCode = null;
+    roomInfo.textContent = "";
+    updateLobbyState();
     lobbyStatus.textContent = "Вызов отменён.";
+    send({ type: "leave_room" });
   });
 
   function randomCode(len) {

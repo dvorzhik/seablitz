@@ -238,6 +238,21 @@ def test_bot_volleys_automatically(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_join_by_code_leaves_queue():
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        await manager.enqueue(ws)
+        assert ws in manager.queue
+        await manager.join_by_code(ws, "ZXCV")
+        assert ws not in manager.queue
+        assert manager.conns[ws].room is not None
+        manager.drop("ZXCV")
+
+    asyncio.run(scenario())
+
+
 def test_leave_room_returns_to_lobby():
     async def scenario():
         manager = RoomManager()
