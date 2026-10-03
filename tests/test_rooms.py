@@ -168,3 +168,71 @@ def test_game_over_after_tiebreak_shows_picture():
         room._cancel_timer()
 
     asyncio.run(scenario())
+
+
+def test_cancel_search_removes_from_queue():
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        await manager.enqueue(ws)
+        assert ws in manager.queue
+        await manager.cancel_search(ws)
+        assert ws not in manager.queue
+        assert ws.sent[-1]["type"] == "search_cancelled"
+
+    asyncio.run(scenario())
+
+
+def test_search_timeout_notifies(monkeypatch):
+    monkeypatch.setattr("app.net.rooms.SEARCH_TIMEOUT_SECONDS", 0.05)
+
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        await manager.enqueue(ws)
+        await asyncio.sleep(0.2)
+        assert any(m["type"] == "search_timeout" for m in ws.sent)
+        manager._cancel_search_timer(ws)
+
+    asyncio.run(scenario())
+
+
+def test_play_bot_starts_match():
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        room = await manager.play_bot(ws)
+
+        assert room.bot_slot is not None
+        assert room.phase == "playing"
+        types = [m["type"] for m in ws.sent]
+        assert "state" in types and "round_start" in types
+
+        room._cancel_bot()
+        await room.handle_volley(0, [[0, 0]])
+        await room.handle_volley(room.bot_slot, [[1, 1]])
+        assert any(m["type"] == "round_result" for m in ws.sent)
+        room._cancel_timer()
+
+    asyncio.run(scenario())
+
+
+def test_bot_volleys_automatically(monkeypatch):
+    monkeypatch.setattr("app.net.rooms.BOT_MIN_DELAY", 0.01)
+    monkeypatch.setattr("app.net.rooms.BOT_MAX_DELAY", 0.02)
+
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        room = await manager.play_bot(ws)
+        await room.handle_volley(0, [[0, 0]])
+        await asyncio.sleep(0.2)
+        assert any(m["type"] == "round_result" for m in ws.sent)
+        room._cancel_timer()
+        room._cancel_bot()
+
+    asyncio.run(scenario())

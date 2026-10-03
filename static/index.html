@@ -39,6 +39,8 @@
       </div>
 
       <button id="btn-quick" class="primary big">⚡ Быстрый бой</button>
+      <button id="btn-cancel" class="ghost" hidden>✖ Отменить поиск</button>
+      <button id="btn-bot">🤖 Играть с ботом</button>
       <button id="btn-create">⚔️ Создать вызов</button>
       <button id="btn-invite" class="ghost" hidden>📨 Отправить вызов другу</button>
 
@@ -53,41 +55,48 @@
       <div id="banner" class="banner"></div>
       <div id="timer"><div id="timer-fill"></div><span id="timer-text"></span></div>
 
-      <div class="boards">
-        <div class="board-block">
-          <h2>Ваш флот</h2>
-          <div id="own-board" class="grid"></div>
-        </div>
-        <div class="board-block">
-          <h2 id="enemy-title">Поле врага</h2>
-          <div id="enemy-board" class="grid"></div>
-        </div>
+      <div class="board-block enemy">
+        <h2 id="enemy-title">Поле врага</h2>
+        <div id="enemy-board" class="grid"></div>
       </div>
 
       <div id="fire-row">
         <span id="selected-count">Выбрано 0/3</span>
-        <button id="btn-fire" class="primary" disabled>ОГОНЬ! 🔥</button>
+        <button id="btn-fire" class="primary big" disabled>ОГОНЬ! 🔥</button>
       </div>
       <div id="hint" class="hint"></div>
+
+      <div class="board-block own">
+        <h2>Ваш флот</h2>
+        <div id="own-board" class="grid"></div>
+      </div>
     </section>
 
     <section id="battle" class="overlay">
       <div id="battle-card" class="battle-card">
         <h2 id="battle-title">⚓ Боевой отчёт</h2>
-        <div class="battle-boards">
-          <div>
+        <div id="bb-main">
+          <div class="board-block">
             <h3 id="bb-own-title">Ваш флот</h3>
             <div id="rp-own" class="grid small"></div>
           </div>
-          <div>
+          <div class="board-block">
             <h3 id="bb-enemy-title">Флот врага</h3>
             <div id="rp-enemy" class="grid small"></div>
           </div>
         </div>
+
+        <div id="bb-ot" hidden>
+          <h3>Поле овертайма</h3>
+          <div id="rp-ot" class="grid small"></div>
+        </div>
+
         <div class="legend">
           <span><i class="dot ship"></i>корабль</span>
           <span><i class="dot hit"></i>попадание</span>
           <span><i class="dot miss"></i>промах</span>
+          <span id="lg-your" hidden><i class="dot your"></i>ваши</span>
+          <span id="lg-enemy" hidden><i class="dot enemy"></i>соперника</span>
         </div>
         <div id="battle-stats" class="stats"></div>
         <div id="battle-count" class="count"></div>
@@ -102,7 +111,8 @@
 
     <section id="overtime" class="overlay">
       <div class="result-card">
-        <h2>⚔️ Овертайм — «Золотой раунд»</h2>
+        <div class="ot-badge">⚔️</div>
+        <h2>Овертайм — «Золотой раунд»</h2>
         <ul class="rules">
           <li>Оба флота уничтожены одновременно — ничьей нет.</li>
           <li>Вы оба бьёте по <b>одному общему полю</b>.</li>

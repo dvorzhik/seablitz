@@ -17,6 +17,13 @@
   const bbOwnTitle = $("bb-own-title");
   const bbEnemyTitle = $("bb-enemy-title");
   const battleShare = $("battle-share");
+  const rpOt = $("rp-ot");
+  const bbMain = $("bb-main");
+  const bbOt = $("bb-ot");
+  const lgYour = $("lg-your");
+  const lgEnemy = $("lg-enemy");
+  const btnCancel = $("btn-cancel");
+  const btnBot = $("btn-bot");
   const ownBoard = $("own-board");
   const enemyBoard = $("enemy-board");
   const banner = $("banner");
@@ -75,6 +82,7 @@
   buildGrid(enemyBoard);
   buildGrid(rpOwn);
   buildGrid(rpEnemy);
+  buildGrid(rpOt);
 
   const key = (r, c) => r + ":" + c;
   const cellAt = (el, r, c) => el.children[r * 5 + c];
@@ -261,8 +269,20 @@
     updateRematchUI();
   }
 
-  function picShots(list) {
-    return (list || []).map((s) => ({ cell: s.cell, outcome: s.hit ? "hit" : "miss" }));
+  // Поле овертайма: один флот + выстрелы обоих (рамка отличает владельца).
+  function renderOvertimeBoard(pic) {
+    clearBoard(rpOt);
+    (pic.ships || []).forEach(([r, c]) => cellAt(rpOt, r, c).classList.add("ship"));
+    (pic.your_shots || []).forEach((s) => {
+      const cell = cellAt(rpOt, s.cell[0], s.cell[1]);
+      cell.classList.add(s.hit ? "hit" : "miss");
+      cell.classList.add("your-shot");
+    });
+    (pic.enemy_shots || []).forEach((s) => {
+      const cell = cellAt(rpOt, s.cell[0], s.cell[1]);
+      cell.classList.add(s.hit ? "hit" : "miss");
+      cell.classList.add("enemy-shot");
+    });
   }
 
   // Картина сражения. final => экран результата: картина основного боя,
@@ -275,10 +295,11 @@
 
     if (msg.mode === "tiebreak" && msg.picture) {
       const pic = msg.picture;
-      bbOwnTitle.textContent = "Ваши выстрелы";
-      bbEnemyTitle.textContent = "Выстрелы соперника";
-      renderReveal(rpOwn, [pic.ships], picShots(pic.your_shots));
-      renderReveal(rpEnemy, [pic.ships], picShots(pic.enemy_shots));
+      bbMain.hidden = true;
+      bbOt.hidden = false;
+      lgYour.hidden = false;
+      lgEnemy.hidden = false;
+      renderOvertimeBoard(pic);
       $("battle-stats").textContent =
         "Золотой раунд " + (pic.round || 1) +
         " · Ваши попадания: " + (pic.your_hits || 0) +
@@ -286,6 +307,10 @@
     } else {
       const view = msg.view || {};
       const st = view.stats || {};
+      bbMain.hidden = false;
+      bbOt.hidden = true;
+      lgYour.hidden = true;
+      lgEnemy.hidden = true;
       bbOwnTitle.textContent = "Ваш флот";
       bbEnemyTitle.textContent = "Флот врага";
       renderReveal(rpOwn, view.your_ships, view.enemy_shots);
@@ -342,6 +367,7 @@
   function handleMessage(msg) {
     switch (msg.type) {
       case "joined":
+        btnCancel.hidden = true;
         mySlot = msg.slot;
         roomCode = msg.code;
         roomInfo.textContent = "Комната " + msg.code;
@@ -353,9 +379,22 @@
           roomInfo.textContent = "Комната " + msg.code;
           lobbyStatus.textContent = "Комната " + msg.code + ": ждём соперника…";
           $("btn-invite").hidden = false;
+          btnCancel.hidden = true;
         } else {
+          roomCode = null;
           lobbyStatus.textContent = "Ищем соперника…";
+          $("btn-invite").hidden = true;
+          btnCancel.hidden = false;
         }
+        break;
+      case "search_cancelled":
+        btnCancel.hidden = true;
+        lobbyStatus.textContent = "Поиск отменён.";
+        break;
+      case "search_timeout":
+        if (msg.share_url) shareUrl = msg.share_url;
+        lobbyStatus.textContent =
+          "Соперник не нашёлся. Создай вызов другу ⚔️ или сыграй с ботом 🤖";
         break;
       case "error":
         lobbyStatus.textContent = "Комната недоступна, попробуйте другую.";
@@ -458,6 +497,17 @@
   $("btn-quick").addEventListener("click", () => {
     lobbyStatus.textContent = "Ищем соперника…";
     send({ type: "quickmatch" });
+  });
+
+  btnCancel.addEventListener("click", () => {
+    send({ type: "cancel" });
+    btnCancel.hidden = true;
+    lobbyStatus.textContent = "Поиск отменён.";
+  });
+
+  btnBot.addEventListener("click", () => {
+    lobbyStatus.textContent = "Готовим тренировочный бой…";
+    send({ type: "play_bot" });
   });
 
   function randomCode(len) {

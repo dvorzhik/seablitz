@@ -58,6 +58,14 @@ async def handle_message(ws: WebSocket, msg: dict) -> None:
             return
         await manager.enqueue(ws)
 
+    elif mtype == "cancel":
+        await manager.cancel_search(ws)
+
+    elif mtype == "play_bot":
+        if conn.room is not None:
+            return
+        await manager.play_bot(ws)
+
     elif mtype == "volley":
         if conn.room is None or conn.slot is None:
             return

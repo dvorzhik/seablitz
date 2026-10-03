@@ -10,6 +10,7 @@ from typing import Awaitable, Callable, Dict, List, Optional
 from fastapi import WebSocket
 
 from app.config import settings
+from app.game.board import ShotOutcome
 from app.game.match import (
     Match,
     MatchConfig,
@@ -24,6 +25,9 @@ RESULT_PAUSE_SECONDS = 1.5
 GATE_SECONDS = 10.0
 OVERTIME_INTRO_SECONDS = 15.0
 REMATCH_WINDOW_SECONDS = 120.0
+SEARCH_TIMEOUT_SECONDS = 20.0
+BOT_MIN_DELAY = 1.5
+BOT_MAX_DELAY = 4.0
 
 
 def make_code(length: int = 4) -> str:
@@ -74,14 +78,30 @@ class Room:
         self._ready: set = set()
         self._gate_goto: Optional[str] = None
         self.rematch_requests: set = set()
+        self.bot_slot: Optional[int] = None
+        self._bot_task: Optional[asyncio.Task] = None
+
+    def _occupied_slots(self) -> set:
+        """Занятые слоты, включая бота (у бота нет сокета)."""
+        slots = set(self.sockets)
+        if self.bot_slot is not None:
+            slots.add(self.bot_slot)
+        return slots
 
     @property
     def full(self) -> bool:
-        return len(self.sockets) >= self.config.players
+        return len(self._occupied_slots()) >= self.config.players
 
     def add_player(self, ws: WebSocket) -> int:
-        slot = 0 if 0 not in self.sockets else 1
+        occupied = self._occupied_slots()
+        slot = 0 if 0 not in occupied else 1
         self.sockets[slot] = ws
+        return slot
+
+    def add_bot(self) -> int:
+        occupied = self._occupied_slots()
+        slot = 0 if 0 not in occupied else 1
+        self.bot_slot = slot
         return slot
 
     def _new_match(self) -> None:
@@ -162,6 +182,7 @@ class Room:
             }
         )
         self._schedule(ROUND_SECONDS, "playing")
+        self._schedule_bot()
 
     async def _start_tiebreak(self) -> None:
         self.phase = "tiebreak"
@@ -179,10 +200,71 @@ class Room:
             }
         )
         self._schedule(TIEBREAK_SECONDS, "tiebreak")
+        self._schedule_bot()
 
     async def _broadcast(self, payload: dict) -> None:
         for ws in list(self.sockets.values()):
             await safe_send(ws, payload)
+
+    # --- бот-соперник ---
+    def _cancel_bot(self) -> None:
+        task = self._bot_task
+        self._bot_task = None
+        if task is not None and not task.done():
+            task.cancel()
+
+    def _schedule_bot(self) -> None:
+        if self.bot_slot is None or self.match is None:
+            return
+        self._cancel_bot()
+        delay = self.rng.uniform(BOT_MIN_DELAY, BOT_MAX_DELAY)
+        self._bot_task = asyncio.create_task(self._bot_act(delay))
+
+    async def _bot_act(self, delay: float) -> None:
+        try:
+            await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            return
+        if self.bot_slot is None or self.match is None:
+            return
+        if self.phase not in ("playing", "tiebreak") or self.bot_slot in self.volleys:
+            return
+        if self.phase == "playing":
+            target = self.match.opponent_board(self.bot_slot)
+            cells = self._bot_cells(target, self.config.shots_per_round)
+        else:
+            cells = self._bot_cells(
+                self.match.tiebreak_board, self.config.tiebreak_shots
+            )
+        await self.handle_volley(self.bot_slot, cells)
+
+    def _bot_cells(self, board, shots: int) -> List[List[int]]:
+        """Стратегия бота: добивать соседей попаданий, иначе — случайно."""
+        unfired = set(board.unfired_cells())
+        hits = [
+            cell
+            for cell, res in board.shots.items()
+            if res.outcome is not ShotOutcome.MISS
+        ]
+        cand: List = []
+        for h in hits:
+            for nb in ((h[0] + 1, h[1]), (h[0] - 1, h[1]), (h[0], h[1] + 1), (h[0], h[1] - 1)):
+                if nb in unfired:
+                    cand.append(nb)
+        self.rng.shuffle(cand)
+        picks: List = []
+        seen: set = set()
+        for cell in cand:
+            if cell not in seen:
+                seen.add(cell)
+                picks.append(cell)
+            if len(picks) == shots:
+                break
+        pool = [c for c in unfired if c not in seen]
+        self.rng.shuffle(pool)
+        while len(picks) < shots and pool:
+            picks.append(pool.pop())
+        return [[r, c] for (r, c) in picks]
 
     async def handle_volley(self, slot: int, cells: list) -> None:
         """Принимает залп игрока; при готовности обоих — разрешает раунд."""
@@ -254,6 +336,7 @@ class Room:
 
     async def _finish_round(self, kind: str) -> None:
         self._cancel_timer()
+        self._cancel_bot()
         if kind == "playing":
             result = self.match.resolve_round(self.volleys)
             self.volleys = {}
@@ -452,6 +535,7 @@ class Room:
     async def remove_player(self, slot: int) -> None:
         self.sockets.pop(slot, None)
         self._cancel_timer()
+        self._cancel_bot()
         for ws in list(self.sockets.values()):
             await safe_send(ws, {"type": "opponent_left", "code": self.code})
         self.manager.drop(self.code)
@@ -464,6 +548,28 @@ class RoomManager:
         self.rooms: Dict[str, Room] = {}
         self.conns: Dict[WebSocket, Conn] = {}
         self.queue: List[WebSocket] = []
+        self._search_timers: Dict[WebSocket, asyncio.Task] = {}
+
+    def _cancel_search_timer(self, ws: WebSocket) -> None:
+        task = self._search_timers.pop(ws, None)
+        if task is not None and not task.done():
+            task.cancel()
+
+    def _start_search_timer(self, ws: WebSocket) -> None:
+        """Через SEARCH_TIMEOUT_SECONDS сообщаем, что соперник не нашёлся."""
+        self._cancel_search_timer(ws)
+
+        async def runner() -> None:
+            try:
+                await asyncio.sleep(SEARCH_TIMEOUT_SECONDS)
+            except asyncio.CancelledError:
+                return
+            if ws in self.queue:
+                await safe_send(
+                    ws, {"type": "search_timeout", "share_url": share_url()}
+                )
+
+        self._search_timers[ws] = asyncio.create_task(runner())
 
     async def _place(self, room: Room, ws: WebSocket) -> int:
         slot = room.add_player(ws)
@@ -498,9 +604,12 @@ class RoomManager:
             await safe_send(
                 ws, {"type": "waiting", "code": None, "share_url": share_url()}
             )
+            self._start_search_timer(ws)
             return None
         a = self.queue.pop(0)
         b = self.queue.pop(0)
+        self._cancel_search_timer(a)
+        self._cancel_search_timer(b)
         code = make_code()
         while code in self.rooms:
             code = make_code()
@@ -511,8 +620,27 @@ class RoomManager:
         await room.start()
         return room
 
+    async def cancel_search(self, ws: WebSocket) -> None:
+        if ws in self.queue:
+            self.queue.remove(ws)
+        self._cancel_search_timer(ws)
+        await safe_send(ws, {"type": "search_cancelled", "share_url": share_url()})
+
+    async def play_bot(self, ws: WebSocket) -> Room:
+        """Игра против бота — для тренировки при пустом онлайне."""
+        code = make_code()
+        while code in self.rooms:
+            code = make_code()
+        room = Room(code, self)
+        self.rooms[code] = room
+        await self._place(room, ws)
+        room.add_bot()
+        await room.start()
+        return room
+
     async def disconnect(self, ws: WebSocket) -> None:
         conn = self.conns.pop(ws, None)
+        self._cancel_search_timer(ws)
         if ws in self.queue:
             self.queue.remove(ws)
         if conn is not None and conn.room is not None and conn.slot is not None:
