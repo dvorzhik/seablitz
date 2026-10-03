@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>SeaBlitz — Морской блиц</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+  <link rel="apple-touch-icon" href="favicon-180.png">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>⚓ SeaBlitz</h1>
+      <div class="head-right">
+        <div id="room-info"></div>
+        <button id="btn-sound" class="icon" title="Звук">🔊</button>
+      </div>
+    </header>
+
+    <section id="lobby" class="screen active">
+      <p class="lead">Морской блиц 5×5 <span class="muted">(1–2 мин)</span></p>
+      <ul class="rules lead-rules">
+        <li><b>Флот:</b> 3 корабля (3, 2 и 1 палуба). Расстановка фиксированная,
+          корабли не касаются даже углами.</li>
+        <li><b>Залп:</b> каждые 10 секунд выбирай 3 клетки и жми «ОГОНЬ!».
+          Не успел — выстрел наугад.</li>
+        <li><b>Цель:</b> потопить вражеский флот быстрее соперника.</li>
+      </ul>
+      <p class="lead">В бой! ⚓</p>
+      <button id="btn-quick" class="primary">⚡ Быстрый бой</button>
+      <button id="btn-create">⚔️ Создать вызов</button>
+      <button id="btn-invite" class="ghost" hidden>📨 Отправить вызов другу</button>
+      <div class="row">
+        <input id="code-input" placeholder="КОД КОМНАТЫ" maxlength="8" autocomplete="off">
+        <button id="btn-join">Войти</button>
+      </div>
+      <div id="lobby-status" class="status"></div>
+    </section>
+
+    <section id="game" class="screen">
+      <div id="banner" class="banner"></div>
+      <div id="timer"><div id="timer-fill"></div><span id="timer-text"></span></div>
+
+      <div class="boards">
+        <div class="board-block">
+          <h2>Ваш флот</h2>
+          <div id="own-board" class="grid"></div>
+        </div>
+        <div class="board-block">
+          <h2 id="enemy-title">Поле врага</h2>
+          <div id="enemy-board" class="grid"></div>
+        </div>
+      </div>
+
+      <div id="fire-row">
+        <span id="selected-count">Выбрано 0/3</span>
+        <button id="btn-fire" class="primary" disabled>ОГОНЬ! 🔥</button>
+      </div>
+      <div id="hint" class="hint"></div>
+    </section>
+
+    <section id="battle" class="overlay">
+      <div id="battle-card" class="battle-card">
+        <h2 id="battle-title">⚓ Боевой отчёт</h2>
+        <div class="battle-boards">
+          <div>
+            <h3 id="bb-own-title">Ваш флот</h3>
+            <div id="rp-own" class="grid small"></div>
+          </div>
+          <div>
+            <h3 id="bb-enemy-title">Флот врага</h3>
+            <div id="rp-enemy" class="grid small"></div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="dot ship"></i>корабль</span>
+          <span><i class="dot hit"></i>попадание</span>
+          <span><i class="dot miss"></i>промах</span>
+        </div>
+        <div id="battle-stats" class="stats"></div>
+        <div id="battle-count" class="count"></div>
+        <div id="battle-note" class="note"></div>
+        <button id="battle-share" class="share-btn" hidden>📣 Поделиться</button>
+        <div class="actions">
+          <button id="battle-continue" class="primary">Продолжить</button>
+          <button id="battle-exit" class="ghost">Выйти</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="overtime" class="overlay">
+      <div class="result-card">
+        <h2>⚔️ Овертайм — «Золотой раунд»</h2>
+        <ul class="rules">
+          <li>Оба флота уничтожены одновременно — ничьей нет.</li>
+          <li>Вы оба бьёте по <b>одному общему полю</b>.</li>
+          <li><b>3 выстрела</b> за <b>10 секунд</b>.</li>
+          <li>Побеждает тот, у кого больше попаданий.</li>
+          <li>При равенстве попаданий — ещё один раунд.</li>
+        </ul>
+        <div id="ot-count" class="count"></div>
+        <button id="ot-start" class="primary">Начать</button>
+      </div>
+    </section>
+  </div>
+  <script src="sound.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

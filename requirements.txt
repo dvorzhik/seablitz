@@ -1,0 +1,7 @@
+# Игровой бэкенд (шаги 2-3)
+fastapi
+uvicorn[standard]
+aiogram
+python-dotenv
+# Тесты
+pytest

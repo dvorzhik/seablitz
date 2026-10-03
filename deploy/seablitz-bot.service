@@ -1,0 +1,14 @@
+[Unit]
+Description=SeaBlitz Telegram bot
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/seablitz
+EnvironmentFile=/home/ubuntu/seablitz/.env
+ExecStart=/home/ubuntu/seablitz/.venv/bin/python -m bot.main
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
