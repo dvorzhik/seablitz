@@ -16,3 +16,7 @@ probe.*
 Thumbs.db
 .idea/
 .vscode/
+
+# Отладочный вывод
+pytest.out
+pytest.err

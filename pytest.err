@@ -1,7 +1,0 @@
-Task exception was never retrieved
-future: <Task finished name='Task-47' coro=<Room._bot_act() done, defined at D:\VibeCoding\seablitz_bot\app\net\rooms.py:223> exception=AttributeError("'Room' object has no attribute 'opponent_board'")>
-Traceback (most recent call last):
-  File "D:\VibeCoding\seablitz_bot\app\net\rooms.py", line 233, in _bot_act
-    target = self.opponent_board(self.bot_slot)
-             ^^^^^^^^^^^^^^^^^^^
-AttributeError: 'Room' object has no attribute 'opponent_board'
