@@ -31,10 +31,6 @@ header h1 { font-size: 20px; margin: 4px 0; }
 
 /* --- стартовый экран --- */
 .hero { text-align: center; padding: 6px 0 12px; }
-.hero-art {
-  display: block; width: 100%; max-width: 480px; margin: 0 auto 12px;
-  border-radius: 16px; box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
-}
 .hero-logo { width: 76px; height: 76px; filter: drop-shadow(0 8px 18px rgba(46, 166, 255, .35)); }
 .hero-title {
   margin: 8px 0 2px; font-size: 36px; font-weight: 800; letter-spacing: .5px;
