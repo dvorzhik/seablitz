@@ -66,7 +66,13 @@ button:disabled { opacity: .4; }
 #btn-bot { width: 100%; margin-top: 10px; }
 #btn-invite { width: 100%; margin-top: 10px; min-height: 48px; }
 .btn-row { display: flex; gap: 8px; margin-top: 10px; }
-.btn-row button { flex: 1; min-height: 48px; }
+.btn-row button { min-height: 48px; white-space: nowrap; }
+.btn-row .primary { flex: 1 1 auto; }
+.btn-row .primary.big { font-size: 16px; padding: 14px 12px; }
+.btn-row .ghost { flex: 0 0 auto; font-size: 14px; padding: 10px 12px; }
+
+/* Атрибут hidden должен побеждать любой display из наших правил */
+[hidden] { display: none !important; }
 
 /* Волны — суровое море в наших цветах */
 #app { position: relative; z-index: 1; }

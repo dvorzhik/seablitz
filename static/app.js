@@ -386,7 +386,6 @@
         searching = false;
         mySlot = msg.slot;
         roomCode = msg.code;
-        roomInfo.textContent = "Комната " + msg.code;
         updateLobbyState();
         break;
       case "waiting":
@@ -394,8 +393,7 @@
         if (msg.code) {
           searching = false;
           roomCode = msg.code;
-          roomInfo.textContent = "Комната " + msg.code;
-          lobbyStatus.textContent = "Комната " + msg.code + ": ждём соперника…";
+          lobbyStatus.textContent = "Ждём соперника…";
         } else {
           searching = true;
           roomCode = null;
@@ -415,7 +413,6 @@
         break;
       case "left_room":
         roomCode = null;
-        roomInfo.textContent = "";
         updateLobbyState();
         lobbyStatus.textContent = "Вызов отменён.";
         break;
@@ -538,7 +535,6 @@
 
   btnInviteCancel.addEventListener("click", () => {
     roomCode = null;
-    roomInfo.textContent = "";
     updateLobbyState();
     lobbyStatus.textContent = "Вызов отменён.";
     send({ type: "leave_room" });
