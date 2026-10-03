@@ -1,0 +1,6 @@
+# Доступ сервера к приватному репозиторию dvorzhik/seablitz (deploy key).
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/seablitz_deploy
+    IdentitiesOnly yes

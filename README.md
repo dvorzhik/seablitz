@@ -36,31 +36,47 @@ python scripts/ws_smoke.py
 > должен быть `wss://`. Код комнаты можно передавать через дип-линк
 > `https://t.me/<bot>/<app>?startapp=<CODE>` — фронтенд уже читает `start_param`.
 
-## Деплой (HTTPS + бот)
+## Деплой
 
-Mini App открывается только по **HTTPS**, а WebSocket — по `wss://`. Готовый
-вариант для VPS: Docker Compose + Caddy (авто-HTTPS через Let's Encrypt).
+Прод: **https://seablitz.duckdns.org** (Oracle Cloud, хост `oracle1`).
+Схема сервера (общая с другими проектами): **nginx + certbot + systemd**, без Docker.
 
-1. Скопируй `.env.example` → `.env`, заполни `BOT_TOKEN`, `BOT_USERNAME`,
-   `WEBAPP_SHORT_NAME`, `DOMAIN`, `BASE_URL`.
-2. Направь A-запись домена на IP сервера.
-3. Запусти:
-   ```bash
-   docker compose up -d --build
-   ```
-   Caddy сам выпустит сертификат для `DOMAIN` и проксирует `web:8000`.
-4. В @BotFather:
-   - `/setinline` — включить инлайн-режим (подсказка, например `Вызов на бой`);
-   - `/newapp` («Configure Mini App») — указать `https://<DOMAIN>` и short name,
-     совпадающий с `WEBAPP_SHORT_NAME`;
-   - **Menu Button** — та же ссылка (кнопка «Играть» у бота).
+- Код: `/home/ubuntu/seablitz` — git-клон этого репозитория (доступ по deploy key).
+- venv: `/home/ubuntu/seablitz/.venv`; секреты: `/home/ubuntu/seablitz/.env` (в git не хранится).
+- systemd: `seablitz-web` (uvicorn на `127.0.0.1:8002`) и `seablitz-bot` (aiogram polling).
+- nginx: сайт `seablitz.duckdns.org` (proxy + отдельный `/ws` с Upgrade), TLS — certbot.
+- Шаблоны настройки — в `deploy/` (systemd-юниты, nginx-конфиг, `ssh_config` для deploy key).
 
-> Состояние матчей хранится в памяти процесса, поэтому uvicorn стартует **одним
-> воркером** (см. `Dockerfile`). При масштабировании на несколько инстансов
-> комнаты нужно вынести в Redis.
+**Обновление одной командой** (коммит → push → pull на сервере → перезапуск):
 
-Для PaaS (Render / Railway / Fly.io) тот же образ деплоится двумя сервисами из
-одного Dockerfile: `web` (команда по умолчанию) и `bot` (`python -m bot.main`).
+```powershell
+powershell -File deploy/redeploy.ps1 "что изменилось"
+```
+
+Только выкладка, если push уже сделан самому:
+
+```powershell
+powershell -File deploy/update.ps1
+```
+
+Логи:
+
+```
+ssh oracle1 "sudo journalctl -u seablitz-web -f"
+ssh oracle1 "sudo journalctl -u seablitz-bot -f"
+```
+
+> Состояние матчей хранится в памяти процесса, поэтому uvicorn запускается **одним
+> воркером**. При масштабировании на несколько инстансов комнаты нужно вынести в Redis.
+> Docker-вариант (`Dockerfile`, `docker-compose.yml`, `Caddyfile`) тоже есть в репозитории,
+> но на текущем сервере Docker выключен и используется nginx + systemd.
+
+### Настройка BotFather
+
+- `/setinline` — включить инлайн-режим (для карточек-вызовов);
+- **Configure Mini App** (главное Mini App) — URL `https://<DOMAIN>/`;
+- **Menu Button** — та же ссылка (кнопка «Играть» у бота).
+
 
 ## Вызовы друзей
 
