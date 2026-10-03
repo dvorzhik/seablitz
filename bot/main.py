@@ -10,12 +10,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from pathlib import Path
 from typing import List, Optional
 
 from aiogram import Bot, Dispatcher
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
 from aiogram.types import (
+    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InlineQuery,
@@ -33,6 +35,10 @@ log = logging.getLogger("seablitz.bot")
 dp = Dispatcher()
 CODE_PREFIX_RE = re.compile(r"blitz[-:\s]*([A-Za-z0-9]{4})", re.IGNORECASE)
 BARE_CODE_RE = re.compile(r"^[A-Za-z0-9]{4}$")
+
+# Афиша бота для приветственного сообщения (/start). Тот же файл отдаётся
+# статикой Mini App (static/welcome.png) и используется в лобби (index.html).
+WELCOME_IMAGE = Path(__file__).resolve().parent.parent / "static" / "welcome.png"
 
 
 def candidate_urls(code: str = "") -> List[str]:
@@ -71,6 +77,16 @@ def extract_code(text: str) -> Optional[str]:
     return None
 
 
+def start_caption() -> str:
+    """Текст приветствия по /start — подпись к фото или текст сообщения."""
+    username = settings.bot_username or "seablitz_bot"
+    return (
+        "⚓ <b>SeaBlitz</b> — морская дуэль 5×5 за 1–2 минуты.\n\n"
+        "Нажми «Играть», чтобы войти. Друга можно вызвать в любом чате: "
+        f"набери <code>@{username}</code> и отправь карточку вызова."
+    )
+
+
 @dp.message(CommandStart())
 async def on_start(message: Message) -> None:
     keyboard = InlineKeyboardMarkup(
@@ -78,14 +94,16 @@ async def on_start(message: Message) -> None:
             [InlineKeyboardButton(text="⚓ Играть", web_app=WebAppInfo(url=webapp_url()))]
         ]
     )
-    username = settings.bot_username or "seablitz_bot"
-    await message.answer(
-        "⚓ <b>SeaBlitz</b> — морская дуэль 5×5 за 1–2 минуты.\n\n"
-        "Нажми «Играть», чтобы войти. Друга можно вызвать в любом чате: "
-        f"набери <code>@{username}</code> и отправь карточку вызова.",
-        reply_markup=keyboard,
-        parse_mode="HTML",
-    )
+    caption = start_caption()
+    if WELCOME_IMAGE.exists():
+        await message.answer_photo(
+            FSInputFile(WELCOME_IMAGE),
+            caption=caption,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+        return
+    await message.answer(caption, reply_markup=keyboard, parse_mode="HTML")
 
 
 def _build_article(

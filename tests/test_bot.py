@@ -1,7 +1,7 @@
 """Тесты бота: разбор кода комнаты и построение ссылки на Mini App."""
 from __future__ import annotations
 
-from bot.main import extract_code, webapp_url
+from bot.main import extract_code, start_caption, webapp_url
 
 
 def test_extract_code_with_prefix():
@@ -32,3 +32,11 @@ def test_webapp_url_without_param():
     url = webapp_url()
     assert url.startswith("https://t.me/")
     assert "startapp" not in url
+
+
+def test_start_caption_mentions_brand_and_username():
+    caption = start_caption()
+    assert "SeaBlitz" in caption
+    assert "Играть" in caption
+    # username всегда присутствует (с фолбэком на seablitz_bot).
+    assert "@" in caption
