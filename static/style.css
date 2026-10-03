@@ -63,8 +63,9 @@ button:disabled { opacity: .4; }
   flex: 1; background: #12314a; border: 1px solid #24506b; color: var(--text);
   border-radius: 12px; padding: 12px; font-size: 16px; text-transform: uppercase;
 }
-#btn-quick, #btn-create, #btn-invite { width: 100%; margin-top: 10px; }
-#btn-quick { margin-top: 14px; }
+#btn-bot, #btn-create { width: 100%; margin-top: 10px; }
+.btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.btn-row button { flex: 1; min-height: 48px; }
 .status { margin-top: 14px; min-height: 20px; font-size: 14px; opacity: .8; }
 
 .banner { min-height: 22px; font-size: 15px; font-weight: 600; text-align: center; margin: 6px 0; }

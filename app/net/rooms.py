@@ -626,6 +626,19 @@ class RoomManager:
         self._cancel_search_timer(ws)
         await safe_send(ws, {"type": "search_cancelled", "share_url": share_url()})
 
+    async def leave_room(self, ws: WebSocket) -> None:
+        """Выйти из созданной комнаты, не разрывая соединение."""
+        conn = self.conns.get(ws)
+        if conn is None or conn.room is None:
+            return
+        room = conn.room
+        slot = conn.slot
+        conn.room = None
+        conn.slot = None
+        if slot is not None:
+            await room.remove_player(slot)
+        await safe_send(ws, {"type": "left_room"})
+
     async def play_bot(self, ws: WebSocket) -> Room:
         """Игра против бота — для тренировки при пустом онлайне."""
         code = make_code()

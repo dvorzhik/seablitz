@@ -24,6 +24,8 @@
   const lgEnemy = $("lg-enemy");
   const btnCancel = $("btn-cancel");
   const btnBot = $("btn-bot");
+  const btnCreate = $("btn-create");
+  const btnInviteCancel = $("btn-invite-cancel");
   const ownBoard = $("own-board");
   const enemyBoard = $("enemy-board");
   const banner = $("banner");
@@ -109,6 +111,13 @@
 
   function showHint(text) { hintEl.textContent = text; }
   function hideHint() { hintEl.textContent = ""; }
+
+  // Пара «Отправить вызов» + «Отменить вызов» под кнопкой «Создать вызов».
+  function showInvite(on) {
+    $("btn-invite").hidden = !on;
+    btnInviteCancel.hidden = !on;
+    btnCreate.disabled = on;
+  }
 
   function resetSelection() {
     selected.clear();
@@ -378,12 +387,12 @@
           roomCode = msg.code;
           roomInfo.textContent = "Комната " + msg.code;
           lobbyStatus.textContent = "Комната " + msg.code + ": ждём соперника…";
-          $("btn-invite").hidden = false;
+          showInvite(true);
           btnCancel.hidden = true;
         } else {
           roomCode = null;
           lobbyStatus.textContent = "Ищем соперника…";
-          $("btn-invite").hidden = true;
+          showInvite(false);
           btnCancel.hidden = false;
         }
         break;
@@ -395,6 +404,12 @@
         if (msg.share_url) shareUrl = msg.share_url;
         lobbyStatus.textContent =
           "Соперник не нашёлся. Создай вызов другу ⚔️ или сыграй с ботом 🤖";
+        break;
+      case "left_room":
+        roomCode = null;
+        roomInfo.textContent = "";
+        showInvite(false);
+        lobbyStatus.textContent = "Вызов отменён.";
         break;
       case "error":
         lobbyStatus.textContent = "Комната недоступна, попробуйте другую.";
@@ -508,6 +523,12 @@
   btnBot.addEventListener("click", () => {
     lobbyStatus.textContent = "Готовим тренировочный бой…";
     send({ type: "play_bot" });
+  });
+
+  btnInviteCancel.addEventListener("click", () => {
+    send({ type: "leave_room" });
+    showInvite(false);
+    lobbyStatus.textContent = "Вызов отменён.";
   });
 
   function randomCode(len) {

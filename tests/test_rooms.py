@@ -236,3 +236,19 @@ def test_bot_volleys_automatically(monkeypatch):
         room._cancel_bot()
 
     asyncio.run(scenario())
+
+
+def test_leave_room_returns_to_lobby():
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(ws=ws)
+        await manager.join_by_code(ws, "ABCD")
+        assert manager.conns[ws].room is not None
+
+        await manager.leave_room(ws)
+        assert manager.conns[ws].room is None
+        assert "ABCD" not in manager.rooms
+        assert ws.sent[-1]["type"] == "left_room"
+
+    asyncio.run(scenario())

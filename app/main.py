@@ -61,6 +61,9 @@ async def handle_message(ws: WebSocket, msg: dict) -> None:
     elif mtype == "cancel":
         await manager.cancel_search(ws)
 
+    elif mtype == "leave_room":
+        await manager.leave_room(ws)
+
     elif mtype == "play_bot":
         if conn.room is not None:
             return

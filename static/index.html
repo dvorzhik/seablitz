@@ -38,11 +38,19 @@
         </ul>
       </div>
 
-      <button id="btn-quick" class="primary big">⚡ Быстрый бой</button>
-      <button id="btn-cancel" class="ghost" hidden>✖ Отменить поиск</button>
+      <div class="btn-row">
+        <button id="btn-quick" class="primary big">⚡ Быстрый бой</button>
+        <button id="btn-cancel" class="ghost" hidden>✖ Отменить поиск</button>
+      </div>
+
       <button id="btn-bot">🤖 Играть с ботом</button>
-      <button id="btn-create">⚔️ Создать вызов</button>
-      <button id="btn-invite" class="ghost" hidden>📨 Отправить вызов другу</button>
+
+      <button id="btn-create" class="primary big">⚔️ Создать вызов</button>
+
+      <div class="btn-row">
+        <button id="btn-invite" class="primary" hidden>📨 Отправить вызов</button>
+        <button id="btn-invite-cancel" class="ghost" hidden>✖ Отменить вызов</button>
+      </div>
 
       <div class="row">
         <input id="code-input" placeholder="КОД КОМНАТЫ" maxlength="8" autocomplete="off">
