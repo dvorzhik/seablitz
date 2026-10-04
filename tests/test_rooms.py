@@ -16,6 +16,20 @@ class FakeWS:
         self.sent.append(payload)
 
 
+class SlowWS(FakeWS):
+    """Как настоящий сокет: реально уступает управление event loop.
+
+    ``FakeWS`` доставляет сообщения синхронно, из-за чего отложенная отмена
+    задачи не успевает проявиться. ``SlowWS`` воспроизводит поведение
+    реального сетевого I/O, при котором ``CancelledError`` прилетает в момент
+    ``await`` — именно так терялся залп бота в «Золотом раунде».
+    """
+
+    async def send_json(self, payload: dict) -> None:
+        await asyncio.sleep(0)
+        self.sent.append(payload)
+
+
 class StubManager:
     def __init__(self) -> None:
         self.dropped: list = []
@@ -232,6 +246,105 @@ def test_bot_volleys_automatically(monkeypatch):
         await room.handle_volley(0, [[0, 0]])
         await asyncio.sleep(0.2)
         assert any(m["type"] == "round_result" for m in ws.sent)
+        room._cancel_timer()
+        room._cancel_bot()
+
+    asyncio.run(scenario())
+
+
+def test_bot_plays_through_overtime_gate_into_tiebreak(monkeypatch):
+    """Бот подтверждает гейты овертайма и стреляет в «Золотом раунде»."""
+    monkeypatch.setattr("app.net.rooms.BOT_READY_MIN_DELAY", 0.01)
+    monkeypatch.setattr("app.net.rooms.BOT_READY_MAX_DELAY", 0.02)
+    monkeypatch.setattr("app.net.rooms.BOT_MIN_DELAY", 0.01)
+    monkeypatch.setattr("app.net.rooms.BOT_MAX_DELAY", 0.02)
+    monkeypatch.setattr("app.net.rooms.TIEBREAK_SECONDS", 5.0)
+
+    async def scenario():
+        cfg = MatchConfig(fleet=(1,), shots_per_round=1, tiebreak_shots=1)
+        manager = StubManager()
+        room = Room("BOTG", manager, cfg)
+        room.match = Match(
+            config=cfg,
+            rng=random.Random(0),
+            fleets={0: [((0, 0),)], 1: [((0, 0),)]},
+        )
+        room.match.resolve_round({0: [(0, 0)], 1: [(0, 0)]})  # обоюдный KO
+        a = FakeWS()
+        room.add_player(a)  # slot 0 — живой игрок
+        room.add_bot()  # slot 1 — бот (без сокета)
+
+        await room._send_battle_report()
+        assert a.sent[-1]["type"] == "battle_report"
+
+        # Живой игрок жмёт «Продолжить» — бот сам подтверждает картину боя.
+        await room.handle_ready(0)
+        await asyncio.sleep(0.1)
+        assert any(m["type"] == "overtime_intro" for m in a.sent)
+
+        # Живой игрок жмёт «Начать» — бот снова подтверждает правила.
+        await room.handle_ready(0)
+        await asyncio.sleep(0.1)
+        assert any(m["type"] == "tiebreak_start" for m in a.sent)
+        assert room.phase == "tiebreak"
+
+        # В «Золотом раунде» бот стреляет сам: без его залпа раунд не решится.
+        await room.handle_volley(0, [[4, 4]])
+        await asyncio.sleep(0.15)
+        assert any(
+            m["type"] in ("tiebreak_result", "game_over") for m in a.sent
+        )
+        room._cancel_timer()
+        room._cancel_bot()
+
+    asyncio.run(scenario())
+
+
+def test_bot_fires_in_tiebreak_when_it_readies_last(monkeypatch):
+    """Регресс: бот, подтвердивший гейт овертайма последним, всё равно стреляет.
+
+    Гейт открывается из задачи самого бота (``_bot_ready``). Раньше отмена
+    текущей задачи прерывала ``_send_overtime_intro``/``_start_tiebreak`` до
+    вызова ``_schedule_bot()`` — соперник-бот молчал в «Золотом раунде».
+    """
+    monkeypatch.setattr("app.net.rooms.BOT_READY_MIN_DELAY", 0.01)
+    monkeypatch.setattr("app.net.rooms.BOT_READY_MAX_DELAY", 0.02)
+    monkeypatch.setattr("app.net.rooms.BOT_MIN_DELAY", 0.01)
+    monkeypatch.setattr("app.net.rooms.BOT_MAX_DELAY", 0.02)
+    monkeypatch.setattr("app.net.rooms.TIEBREAK_SECONDS", 5.0)
+
+    async def scenario():
+        cfg = MatchConfig(fleet=(1,), shots_per_round=1, tiebreak_shots=1)
+        manager = StubManager()
+        room = Room("BOTG", manager, cfg)
+        room.match = Match(
+            config=cfg,
+            rng=random.Random(0),
+            fleets={0: [((0, 0),)], 1: [((0, 0),)]},
+        )
+        room.match.resolve_round({0: [(0, 0)], 1: [(0, 0)]})  # обоюдный KO
+        a = SlowWS()
+        room.add_player(a)  # slot 0 — живой игрок
+        room.add_bot()  # slot 1 — бот
+
+        await room._send_battle_report()
+
+        # Игрок жмёт «Продолжить» ПЕРВЫМ — значит, гейт открывает задача бота.
+        await room.handle_ready(0)
+        await asyncio.sleep(0.1)
+        assert any(m["type"] == "overtime_intro" for m in a.sent)
+
+        await room.handle_ready(0)
+        await asyncio.sleep(0.1)
+        assert any(m["type"] == "tiebreak_start" for m in a.sent)
+        assert room.phase == "tiebreak"
+
+        # Стреляет только игрок: без ответного залпа бота раунд не решится.
+        await room.handle_volley(0, [[4, 4]])
+        await asyncio.sleep(0.15)
+        assert any(
+            m["type"] in ("tiebreak_result", "game_over") for m in a.sent
+        )
         room._cancel_timer()
         room._cancel_bot()
 

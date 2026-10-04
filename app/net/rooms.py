@@ -28,6 +28,10 @@ REMATCH_WINDOW_SECONDS = 120.0
 SEARCH_TIMEOUT_SECONDS = 20.0
 BOT_MIN_DELAY = 1.5
 BOT_MAX_DELAY = 4.0
+# Бот «нажимает Готов» в гейтах овертайма (картина боя и правила) чуть быстрее,
+# чем стреляет, — чтобы бой не зависел от повторных кликов живого игрока.
+BOT_READY_MIN_DELAY = 0.4
+BOT_READY_MAX_DELAY = 1.2
 
 
 def make_code(length: int = 4) -> str:
@@ -80,6 +84,7 @@ class Room:
         self.rematch_requests: set = set()
         self.bot_slot: Optional[int] = None
         self._bot_task: Optional[asyncio.Task] = None
+        self._bot_ready_task: Optional[asyncio.Task] = None
 
     def _occupied_slots(self) -> set:
         """Занятые слоты, включая бота (у бота нет сокета)."""
@@ -127,12 +132,24 @@ class Room:
             )
         await self._start_round()
 
+    @staticmethod
+    def _cancel_task(task: Optional[asyncio.Task]) -> None:
+        """Отменяет задачу, но никогда не пытается отменить саму себя.
+
+        Гейты овертайма открываются из задачи бота (``_bot_ready``), а
+        ``_finish_round`` может быть вызван из задачи залпа бота. Отмена
+        текущей задачи привела бы к тому, что ``await`` внутри обработчика
+        получил бы ``CancelledError`` и прервал работу — например, бот не
+        успевал запланировать залп в «Золотом раунде».
+        """
+        if task is None or task.done() or task is asyncio.current_task():
+            return
+        task.cancel()
+
     def _cancel_timer(self) -> None:
         timer = self._timer
         self._timer = None
-        if timer is None or timer is asyncio.current_task():
-            return
-        timer.cancel()
+        self._cancel_task(timer)
 
     def _schedule(self, seconds: float, kind: str) -> None:
         """Ставит таймер раунда; по истечении — добивание случайными выстрелами."""
@@ -210,8 +227,30 @@ class Room:
     def _cancel_bot(self) -> None:
         task = self._bot_task
         self._bot_task = None
-        if task is not None and not task.done():
-            task.cancel()
+        self._cancel_task(task)
+        self._cancel_bot_ready()
+
+    def _cancel_bot_ready(self) -> None:
+        task = self._bot_ready_task
+        self._bot_ready_task = None
+        self._cancel_task(task)
+
+    def _schedule_bot_ready(self) -> None:
+        """Бот «нажимает Готов» в гейте овертайма (у бота нет сокета)."""
+        self._cancel_bot_ready()
+        if self.bot_slot is None or self._gate_goto is None:
+            return
+        delay = self.rng.uniform(BOT_READY_MIN_DELAY, BOT_READY_MAX_DELAY)
+        self._bot_ready_task = asyncio.create_task(self._bot_ready(delay))
+
+    async def _bot_ready(self, delay: float) -> None:
+        try:
+            await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            return
+        if self.bot_slot is None or self._gate_goto is None:
+            return
+        await self._mark_ready(self.bot_slot)
 
     def _schedule_bot(self) -> None:
         if self.bot_slot is None or self.match is None:
@@ -429,11 +468,13 @@ class Room:
             await self._open_gate()
 
         self._timer = asyncio.create_task(runner())
+        self._schedule_bot_ready()
 
     async def _open_gate(self) -> None:
         goto = self._gate_goto
         self._gate_goto = None
         self._cancel_timer()
+        self._cancel_bot_ready()
         if goto == "overtime":
             await self._send_overtime_intro()
         elif goto == "tiebreak":
@@ -441,10 +482,14 @@ class Room:
 
     async def handle_ready(self, slot: int) -> None:
         """Игрок нажал «Продолжить»/«Начать»."""
+        await self._mark_ready(slot)
+
+    async def _mark_ready(self, slot: int) -> None:
+        """Отмечает готовность слота (игрока или бота) и открывает гейт."""
         if self._gate_goto is None:
             return
         self._ready.add(slot)
-        if len(self._ready) >= len(self.sockets):
+        if len(self._ready) >= len(self._occupied_slots()):
             await self._open_gate()
 
     async def handle_rematch(self, slot: int) -> None:

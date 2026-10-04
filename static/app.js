@@ -39,6 +39,12 @@
   const enemyTitle = $("enemy-title");
   const hintEl = $("hint");
   const btnSound = $("btn-sound");
+  const scoreUs = $("score-us");
+  const scoreThem = $("score-them");
+  const battleRounds = $("battle-rounds");
+  const bbStats = $("bb-stats");
+  const bbStatsOt = $("bb-stats-ot");
+  const battleResult = $("battle-result");
 
   let ws = null;
   let mySlot = null;
@@ -113,6 +119,27 @@
 
   function showHint(text) { hintEl.textContent = text; }
   function hideHint() { hintEl.textContent = ""; }
+
+  // --- счёт подбитых палуб (нижняя строка игрового экрана) ---
+  // Считаем попадания (не промахи): в основном бою — по outcome, в тайбрейке — по hit.
+  function countHits(shots) {
+    return (shots || []).filter(
+      (s) => s.hit === true || (s.outcome && s.outcome !== "miss")
+    ).length;
+  }
+
+  function setScore(weHit, theyHit, total) {
+    const t = total || 6;
+    scoreUs.textContent = "Мы подбили: " + weHit + "/" + t;
+    scoreThem.textContent = "У нас подбито: " + theyHit + "/" + t;
+  }
+
+  function updateScore(view) {
+    if (!view) return;
+    const ships = view.your_ships || [];
+    const total = ships.reduce((n, ship) => n + ship.length, 0) || 6;
+    setScore(countHits(view.your_shots), countHits(view.enemy_shots), total);
+  }
 
   // Состояние лобби: идёт поиск / создана комната -> лишние кнопки тускнеют.
   function updateLobbyState() {
@@ -301,6 +328,16 @@
     });
   }
 
+  // Колонка статистики слева от полей: попадания наши и противника.
+  function sideStatsHtml(yourHits, yourShots, enemyHits, enemyShots) {
+    return (
+      '<div class="side-line"><span class="side-label">Ваши попадания</span>' +
+      '<span class="side-value good">' + yourHits + "/" + yourShots + "</span></div>" +
+      '<div class="side-line"><span class="side-label">Попадания врага</span>' +
+      '<span class="side-value bad">' + enemyHits + "/" + enemyShots + "</span></div>"
+    );
+  }
+
   // Картина сражения. final => экран результата: картина основного боя,
   // либо (если решил овертайм) расклад «Золотого раунда».
   function showBattle(msg) {
@@ -316,10 +353,12 @@
       lgYour.hidden = false;
       lgEnemy.hidden = false;
       renderOvertimeBoard(pic);
-      $("battle-stats").textContent =
-        "Золотой раунд " + (pic.round || 1) +
-        " · Ваши попадания: " + (pic.your_hits || 0) +
-        " · Соперника: " + (pic.enemy_hits || 0);
+      const yShots = pic.your_shots || [];
+      const eShots = pic.enemy_shots || [];
+      bbStatsOt.innerHTML = sideStatsHtml(
+        countHits(yShots), yShots.length, countHits(eShots), eShots.length
+      );
+      battleRounds.textContent = "Золотой раунд " + (pic.round || 1);
     } else {
       const view = msg.view || {};
       const st = view.stats || {};
@@ -331,10 +370,13 @@
       bbEnemyTitle.textContent = "Флот врага";
       renderReveal(rpOwn, view.your_ships, view.enemy_shots);
       renderReveal(rpEnemy, view.enemy_ships, view.your_shots);
-      $("battle-stats").textContent =
+      bbStats.innerHTML = sideStatsHtml(
+        st.your_hits || 0, st.your_shots || 0,
+        st.enemy_hits || 0, st.enemy_shots || 0
+      );
+      battleRounds.textContent =
         "Раундов: " + (st.rounds || 0) +
-        " · Ваши попадания: " + (st.your_hits || 0) + "/" + (st.your_shots || 0) +
-        " · Попадания врага: " + (st.enemy_hits || 0) + "/" + (st.enemy_shots || 0);
+        (st.tiebreak_rounds ? " · «Золотых»: " + st.tiebreak_rounds : "");
     }
 
     const btn = $("battle-continue");
@@ -344,9 +386,10 @@
       Sound.play(msg.you_won ? "win" : "lose");
       battleCard.classList.add(msg.you_won ? "win" : "lose");
       $("battle-title").textContent = msg.you_won ? "ПОБЕДА!" : "ПОРАЖЕНИЕ";
-      $("battle-count").textContent = msg.you_won
+      battleResult.textContent = msg.you_won
         ? (msg.mode === "tiebreak" ? "Вы выиграли «Золотой раунд»." : "Флот врага уничтожен.")
         : (msg.mode === "tiebreak" ? "Вы проиграли «Золотой раунд»." : "Ваш флот уничтожен.");
+      $("battle-count").textContent = "";
       $("battle-exit").style.display = "";
       battleShare.hidden = false;
       battleShare.textContent = msg.you_won ? "📣 Поделиться победой" : "📣 Поделиться игрой";
@@ -358,6 +401,7 @@
       const isDraw = !!msg.draw;
       if (isDraw) battleCard.classList.add("draw");
       $("battle-title").textContent = isDraw ? "НИЧЬЯ" : "⚓ Боевой отчёт";
+      battleResult.textContent = "";
       $("battle-exit").style.display = "none";
       $("battle-note").textContent = isDraw
         ? "Оба флота уничтожены — «Золотой раунд»"
@@ -424,6 +468,7 @@
         hideOverlays();
         renderOwn(msg.view);
         renderEnemy(msg.view);
+        updateScore(msg.view);
         lockSelection();
         break;
       case "round_start":
@@ -438,6 +483,7 @@
         lockSelection();
         renderOwn(msg.view);
         renderEnemy(msg.view);
+        updateScore(msg.view);
         animateShots(msg);
         if (msg.needs_tiebreak) setBanner("⚔️ Обоюдный залп! Золотой раунд");
         else setBanner("Раунд " + msg.round + ": попаданий — " + msg.your_hits);
@@ -449,11 +495,17 @@
         setBanner("⚔️ Золотой раунд " + msg.round + ": у кого больше попаданий");
         startTimer(msg.timeout_ms);
         clearBoard(enemyBoard);
+        setScore(0, 0, msg.ships_total);
         resetSelection();
         break;
       case "tiebreak_result":
         lockSelection();
         renderTiebreak(msg);
+        setScore(
+          countHits(msg.your_shots),
+          countHits(msg.enemy_shots),
+          (msg.ships || []).length
+        );
         break;
       case "game_over":
         msg.final = true;  // финальный бой — всегда экран результата

@@ -34,6 +34,7 @@
             корабли не касаются даже углами.</li>
           <li><b>Залп:</b> каждые 10 секунд выбирай 3 клетки и жми «ОГОНЬ!».
             Не успел — выстрел наугад.</li>
+          <li><b>Бой:</b> соперник стреляет одновременно с тобой.</li>
           <li><b>Цель:</b> потопить вражеский флот быстрее соперника.</li>
         </ul>
       </div>
@@ -72,6 +73,10 @@
         <span id="selected-count">Выбрано 0/3</span>
         <button id="btn-fire" class="primary big" disabled>ОГОНЬ! 🔥</button>
       </div>
+      <div id="score-row" class="score-row">
+        <span id="score-us" class="score score-us">Мы подбили: 0/6</span>
+        <span id="score-them" class="score score-them">У нас подбито: 0/6</span>
+      </div>
       <div id="hint" class="hint"></div>
 
       <div class="board-block own">
@@ -83,20 +88,30 @@
     <section id="battle" class="overlay">
       <div id="battle-card" class="battle-card">
         <h2 id="battle-title">⚓ Боевой отчёт</h2>
-        <div id="bb-main">
-          <div class="board-block">
-            <h3 id="bb-enemy-title">Флот врага</h3>
-            <div id="rp-enemy" class="grid"></div>
-          </div>
-          <div class="board-block own">
-            <h3 id="bb-own-title">Ваш флот</h3>
-            <div id="rp-own" class="grid"></div>
+        <div id="battle-rounds" class="battle-rounds"></div>
+
+        <div id="bb-main" class="battle-main">
+          <div id="bb-stats" class="battle-side"></div>
+          <div class="battle-boards">
+            <div class="board-block">
+              <h3 id="bb-enemy-title">Флот врага</h3>
+              <div id="rp-enemy" class="grid battle"></div>
+            </div>
+            <div class="board-block own">
+              <h3 id="bb-own-title">Ваш флот</h3>
+              <div id="rp-own" class="grid battle"></div>
+            </div>
           </div>
         </div>
 
-        <div id="bb-ot" hidden>
-          <h3>Поле овертайма</h3>
-          <div id="rp-ot" class="grid"></div>
+        <div id="bb-ot" class="battle-main" hidden>
+          <div id="bb-stats-ot" class="battle-side"></div>
+          <div class="battle-boards one">
+            <div class="board-block">
+              <h3>Поле овертайма</h3>
+              <div id="rp-ot" class="grid battle"></div>
+            </div>
+          </div>
         </div>
 
         <div class="legend">
@@ -106,7 +121,7 @@
           <span id="lg-your" hidden><i class="dot your"></i>ваши</span>
           <span id="lg-enemy" hidden><i class="dot enemy"></i>соперника</span>
         </div>
-        <div id="battle-stats" class="stats"></div>
+        <div id="battle-result" class="battle-result"></div>
         <div id="battle-count" class="count"></div>
         <div id="battle-note" class="note"></div>
         <button id="battle-share" class="share-btn" hidden>📣 Поделиться</button>
@@ -122,7 +137,8 @@
         <div class="ot-badge">⚔️</div>
         <h2>Овертайм — «Золотой раунд»</h2>
         <ul class="rules">
-          <li>Оба флота уничтожены одновременно — ничьей нет.</li>
+          <li>Оба флота были уничтожены одновременно.</li>
+          <li>Победитель определится в дополнительном раунде.</li>
           <li>Вы оба бьёте по <b>одному общему полю</b>.</li>
           <li><b>3 выстрела</b> за <b>10 секунд</b>.</li>
           <li>Побеждает тот, у кого больше попаданий.</li>

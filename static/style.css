@@ -150,6 +150,11 @@ button:disabled { opacity: .4; }
 #selected-count { font-size: 13px; opacity: .8; min-width: 86px; }
 .hint { min-height: 18px; margin-top: 8px; text-align: center; font-size: 13px; font-weight: 600; color: #ffd76a; }
 
+/* Подсчёт подбитых палуб: слева зелёным — наши успехи, справа красным — потери. */
+.score-row { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; font-weight: 700; }
+.score-us { color: #57d96a; }
+.score-them { color: #ff7a6a; }
+
 .head-right { display: flex; align-items: center; gap: 8px; }
 .icon { background: transparent; border: 1px solid #24506b; border-radius: 10px; padding: 6px 10px; font-size: 15px; }
 
@@ -171,15 +176,16 @@ button:disabled { opacity: .4; }
 .lead-rules li { margin-bottom: 5px; }
 
 .battle-card {
-  background: var(--panel); border-radius: 18px; padding: 18px;
-  width: 92%; max-width: 420px; text-align: center;
+  background: var(--panel); border-radius: 18px; padding: 14px;
+  width: 94%; max-width: 440px; text-align: center;
   transition: box-shadow .25s ease;
-  max-height: 92vh; overflow-y: auto;
+  max-height: 96vh; overflow-y: auto;
 }
 .battle-card h2 {
-  margin: 0 0 12px; font-size: 26px; letter-spacing: 1px;
+  margin: 0 0 4px; font-size: 24px; letter-spacing: 1px;
   text-transform: uppercase; font-weight: 800;
 }
+.battle-rounds { font-size: 13px; opacity: .85; margin-bottom: 8px; }
 .battle-card.win { box-shadow: 0 0 0 2px rgba(255, 214, 106, .45), 0 18px 46px rgba(0, 0, 0, .5); }
 .battle-card.lose { box-shadow: 0 0 0 2px rgba(255, 90, 58, .45), 0 18px 46px rgba(0, 0, 0, .5); }
 .battle-card.draw { box-shadow: 0 0 0 2px rgba(200, 220, 235, .5), 0 18px 46px rgba(0, 0, 0, .5); }
@@ -195,9 +201,26 @@ button:disabled { opacity: .4; }
   text-shadow: 0 0 22px rgba(170, 205, 235, .9), 0 0 40px rgba(120, 170, 210, .6);
 }
 .banner.draw { color: #dbeaf5; text-shadow: 0 0 14px rgba(170, 205, 235, .75); }
-.battle-boards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.battle-boards h3 { font-size: 12px; opacity: .8; margin: 0 0 6px; }
+.battle-main { display: flex; align-items: flex-start; gap: 8px; }
+.battle-boards { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.battle-boards.one { grid-template-columns: 1fr; justify-items: center; }
+.battle-boards h3 { font-size: 11px; opacity: .8; margin: 0 0 5px; }
+.battle-boards .board-block,
+.battle-boards .board-block.own { max-width: none; margin: 0; }
 .grid.small .cell { border-radius: 6px; font-size: 12px; }
+
+/* Слева от полей — статистика попаданий (числа свои и противника). */
+.battle-side { flex: 0 0 62px; display: flex; flex-direction: column; gap: 12px; text-align: left; padding-top: 22px; }
+.battle-side .side-label { display: block; font-size: 10px; line-height: 1.15; opacity: .75; }
+.battle-side .side-value { display: block; font-size: 17px; font-weight: 800; }
+.battle-side .side-value.good { color: #57d96a; }
+.battle-side .side-value.bad { color: #ff7a6a; }
+
+/* Поля результата — на 25% компактнее игровых (клетки меньше, без скролла). */
+.grid.battle { gap: 4px; }
+.grid.battle .cell { border-radius: 5px; font-size: 11px; }
+
+.battle-result { font-size: 15px; font-weight: 700; margin: 8px 0 2px; }
 
 .ot-badge { font-size: 42px; line-height: 1; margin-bottom: 8px; filter: drop-shadow(0 6px 16px rgba(255, 183, 3, .4)); }
 
