@@ -63,6 +63,7 @@
   let mySlot = null;
   let roomCode = null;
   let roomPlayers = [];
+  let lastFinal = null;
   let shotsPerRound = 3;
   let selectable = false;
   const selected = new Set();
@@ -370,7 +371,7 @@
     const label = player.username ? "@" + player.username : (player.name || "игрок");
     let avatar;
     if (player.is_bot) {
-      avatar = "🏴‍☠️";
+      avatar = '<img class="who-img" src="pirates.jpg?v=7" alt="">';
     } else if (player.photo_url) {
       avatar = '<img class="who-img" src="' + esc(player.photo_url) +
         '" alt="" referrerpolicy="no-referrer">';
@@ -565,6 +566,7 @@
         break;
       case "game_over":
         msg.final = true;  // финальный бой — всегда экран результата
+        lastFinal = msg;
         showBattle(msg);
         break;
       case "battle_report":
@@ -712,20 +714,272 @@
     location.reload();
   });
 
+  // ---------- Картинка с итогами боя для кнопки «Поделиться победой» ----------
+  let piratesImg = null;
+  (function preloadPirates() {
+    const im = new Image();
+    im.onload = () => { piratesImg = im; };
+    im.src = "pirates.jpg?v=7";
+  })();
+
+  function playerLabel(p) {
+    if (!p) return "игрок";
+    return p.username ? "@" + p.username : (p.name || "игрок");
+  }
+
+  function rr(ctx, x, y, w, h, rad) {
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+  }
+
+  function star6(ctx, cx, cy, r) {
+    ctx.save();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    for (let i = 0; i < 3; i++) {
+      const a = (Math.PI / 3) * i;
+      ctx.beginPath();
+      ctx.moveTo(cx - Math.cos(a) * r, cy - Math.sin(a) * r);
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function boardMarks(ships, shots) {
+    const marks = {};
+    (ships || []).forEach((ship) =>
+      ship.forEach(([r, c]) => { marks[r + ":" + c] = "ship"; })
+    );
+    (shots || []).forEach((s) => {
+      const [r, c] = s.cell;
+      marks[r + ":" + c] = (s.outcome && s.outcome !== "miss") ? "hit" : "miss";
+    });
+    return marks;
+  }
+
+  function shareBoards(msg) {
+    if (msg.mode === "tiebreak" && msg.picture) {
+      const pic = msg.picture;
+      const marks = {};
+      (pic.ships || []).forEach(([r, c]) => { marks[r + ":" + c] = "ship"; });
+      [pic.your_shots, pic.enemy_shots].forEach((arr) =>
+        (arr || []).forEach((s) => {
+          const [r, c] = s.cell;
+          marks[r + ":" + c] = s.hit ? "hit" : "miss";
+        })
+      );
+      return [{ title: "Общее поле", marks }];
+    }
+    const view = msg.view || {};
+    return [
+      { title: "Флот врага", marks: boardMarks(view.enemy_ships, view.your_shots) },
+      { title: "Ваш флот", marks: boardMarks(view.your_ships, view.enemy_shots) },
+    ];
+  }
+
+  function drawBoard(ctx, x, y, size, marks) {
+    const gap = 6;
+    const cell = (size - gap * 4) / 5;
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        const cx = x + c * (cell + gap);
+        const cy = y + r * (cell + gap);
+        const m = marks[r + ":" + c];
+        let fill = "#0f2a3d";
+        if (m === "ship") fill = "#6b7c8c";
+        else if (m === "hit") fill = "#e23b22";
+        else if (m === "miss") fill = "#2b4a63";
+        rr(ctx, cx, cy, cell, cell, 10);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (m === "hit") star6(ctx, cx + cell / 2, cy + cell / 2, cell * 0.22);
+        else if (m === "miss") {
+          ctx.beginPath();
+          ctx.arc(cx + cell / 2, cy + cell / 2, 4, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(180,205,225,.55)";
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  function wrapLeft(ctx, text, x, y, maxWidth, lh) {
+    const words = String(text).split(" ");
+    let line = "";
+    let ly = y;
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, ly);
+        line = w;
+        ly += lh;
+      } else {
+        line = test;
+      }
+    }
+    if (line) ctx.fillText(line, x, ly);
+  }
+
+  function drawAvatar(ctx, cx, cy, player, img) {
+    const R = 46;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fillStyle = "#1d3d54";
+    ctx.fill();
+    ctx.clip();
+    if (img) {
+      ctx.drawImage(img, cx - R, cy - R, R * 2, R * 2);
+    } else {
+      ctx.fillStyle = "#cfe4f4";
+      ctx.font = "bold 46px 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText((player.username || player.name || "?").charAt(0).toUpperCase(), cx, cy);
+      ctx.textBaseline = "alphabetic";
+    }
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#2b5a78";
+    ctx.stroke();
+    ctx.fillStyle = "#eaf4ff";
+    ctx.font = "24px 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(playerLabel(player), cx, cy + R + 32);
+  }
+
+  function buildShareImageDataUrl(winnerText) {
+    const msg = lastFinal || {};
+    const view = msg.view || {};
+    const st = view.stats || {};
+    const youWon = !!msg.you_won;
+    const tie = msg.mode === "tiebreak" && !!msg.picture;
+    const W = 900;
+    const H = tie ? 1020 : 1560;
+    const cv = document.createElement("canvas");
+    cv.width = W;
+    cv.height = H;
+    const ctx = cv.getContext("2d");
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#0d2437");
+    bg.addColorStop(1, "#081521");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = "center";
+
+    ctx.font = "bold 104px 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = youWon ? "#ffd76a" : "#ff7a6a";
+    ctx.shadowColor = youWon ? "rgba(255,214,106,.55)" : "rgba(255,90,58,.55)";
+    ctx.shadowBlur = 34;
+    ctx.fillText(youWon ? "ПОБЕДА!" : "ПОРАЖЕНИЕ", W / 2, 148);
+    ctx.shadowBlur = 0;
+
+    const rounds = st.rounds || (msg.picture && msg.picture.round) || 0;
+    ctx.font = "42px 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = "#cfe4f4";
+    ctx.fillText("Раундов: " + rounds, W / 2, 220);
+
+    ctx.font = "bold 46px 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = "#eaf4ff";
+    ctx.fillText(winnerText, W / 2, 296);
+
+    const me = roomPlayers.find((p) => p && p.slot === mySlot) || null;
+    const foe = roomPlayers.find((p) => p && p.slot !== mySlot) || null;
+    const boards = shareBoards(msg);
+    const avatars = tie ? [me] : [foe, me];
+    const statLines = tie
+      ? [null]
+      : [
+          { label: "Ваши попадания", value: (st.your_hits || 0) + "/" + (st.your_shots || 0), color: "#57d96a" },
+          { label: "Попадания врага", value: (st.enemy_hits || 0) + "/" + (st.enemy_shots || 0), color: "#ff7a6a" },
+        ];
+
+    const boardSize = 430;
+    const bx = (W - boardSize) / 2;
+    let top = tie ? 380 : 360;
+    for (let i = 0; i < boards.length; i++) {
+      const b = boards[i];
+      ctx.font = "bold 40px 'Segoe UI', Roboto, sans-serif";
+      ctx.fillStyle = "#dbeaf5";
+      ctx.textAlign = "center";
+      ctx.fillText(b.title, W / 2, top + 34);
+      drawBoard(ctx, bx, top + 56, boardSize, b.marks);
+      const s = statLines[i];
+      if (s) {
+        ctx.textAlign = "left";
+        ctx.font = "26px 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = "rgba(234,244,255,.75)";
+        wrapLeft(ctx, s.label, 24, top + 150, 175, 32);
+        ctx.font = "bold 44px 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = s.color;
+        ctx.fillText(s.value, 24, top + 250);
+      }
+      const p = avatars[i];
+      if (p) drawAvatar(ctx, W - 100, top + 150, p, p.is_bot ? piratesImg : null);
+      top += boardSize + 116;
+    }
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 40px 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = "#9fd0ff";
+    ctx.fillText("⚓ SeaBlitz", W / 2, H - 64);
+
+    return cv.toDataURL("image/png");
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const [head, b64] = dataUrl.split(",");
+    const mime = (head.match(/:(.*?);/) || [null, "image/png"])[1];
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
   function shareGame() {
-    const text = "Сыграй в SeaBlitz ⚓ — морская дуэль 5×5 за минуту!";
+    Sound.play("select");
     const url = shareUrl || "https://t.me/seablitz_bot";
+    const me = roomPlayers.find((p) => p && p.slot === mySlot) || null;
+    const foe = roomPlayers.find((p) => p && p.slot !== mySlot) || null;
+    const youWon = !!(lastFinal && lastFinal.you_won);
+    const winnerText =
+      playerLabel(youWon ? me : foe) + " победил " + playerLabel(youWon ? foe : me);
+    const footer = "Сыграй в SeaBlitz ⚓ — если ты настоящий морской волк";
+    const caption = winnerText + "\n\n" + footer + "\n" + url;
+
+    // Пытаемся приложить красивую картинку с итогами боя.
+    let file = null;
+    try {
+      const blob = dataUrlToBlob(buildShareImageDataUrl(winnerText));
+      const f = new File([blob], "seablitz.png", { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) file = f;
+    } catch (e) {
+      console.error("SeaBlitz: не удалось собрать картинку", e);
+    }
+
+    if (file && navigator.share) {
+      navigator.share({ files: [file], text: caption }).catch(() => {});
+      return;
+    }
+
+    // Запасной вариант — ссылка с текстом (без картинки).
     const shareLink =
       "https://t.me/share/url?url=" + encodeURIComponent(url) +
-      "&text=" + encodeURIComponent(text);
-    Sound.play("select");
-    if (tg && tg.openTelegramLink) {
-      tg.openTelegramLink(shareLink);
-    } else if (navigator.share) {
-      navigator.share({ text: text, url: url }).catch(() => {});
-    } else {
-      window.open(shareLink, "_blank");
-    }
+      "&text=" + encodeURIComponent(winnerText + "\n\n" + footer);
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(shareLink);
+    else if (navigator.share) navigator.share({ text: caption }).catch(() => {});
+    else window.open(shareLink, "_blank");
   }
   battleShare.addEventListener("click", shareGame);
 
