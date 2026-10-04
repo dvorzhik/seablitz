@@ -150,8 +150,12 @@ button:disabled { opacity: .4; }
 #selected-count { font-size: 13px; opacity: .8; min-width: 86px; }
 .hint { min-height: 18px; margin-top: 8px; text-align: center; font-size: 13px; font-weight: 600; color: #ffd76a; }
 
-/* Подсчёт подбитых палуб: слева зелёным — наши успехи, справа красным — потери. */
-.score-row { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; font-weight: 700; }
+/* Счёт подбитых палуб между кнопкой «ОГОНЬ!» и «Ваш флот»:
+   слева с края — зелёные цифры (мы), справа с края — красные (враг). */
+.score-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 14px 2px 2px; font-size: 18px; font-weight: 800; letter-spacing: .5px;
+}
 .score-us { color: #57d96a; }
 .score-them { color: #ff7a6a; }
 

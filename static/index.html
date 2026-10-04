@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
   <link rel="apple-touch-icon" href="favicon-180.png">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div id="app">
@@ -74,8 +74,8 @@
         <button id="btn-fire" class="primary big" disabled>ОГОНЬ! 🔥</button>
       </div>
       <div id="score-row" class="score-row">
-        <span id="score-us" class="score score-us">Мы подбили: 0/6</span>
-        <span id="score-them" class="score score-them">У нас подбито: 0/6</span>
+        <span id="score-us" class="score score-us" title="Подбито палуб врага">0/6</span>
+        <span id="score-them" class="score score-them" title="Подбито наших палуб">0/6</span>
       </div>
       <div id="hint" class="hint"></div>
 
@@ -156,7 +156,7 @@
       </svg>
     </div>
   </div>
-  <script src="sound.js"></script>
-  <script src="app.js"></script>
+  <script src="sound.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

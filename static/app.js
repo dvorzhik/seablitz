@@ -130,8 +130,8 @@
 
   function setScore(weHit, theyHit, total) {
     const t = total || 6;
-    scoreUs.textContent = "Мы подбили: " + weHit + "/" + t;
-    scoreThem.textContent = "У нас подбито: " + theyHit + "/" + t;
+    if (scoreUs) scoreUs.textContent = weHit + "/" + t;
+    if (scoreThem) scoreThem.textContent = theyHit + "/" + t;
   }
 
   function updateScore(view) {
@@ -355,10 +355,10 @@
       renderOvertimeBoard(pic);
       const yShots = pic.your_shots || [];
       const eShots = pic.enemy_shots || [];
-      bbStatsOt.innerHTML = sideStatsHtml(
+      if (bbStatsOt) bbStatsOt.innerHTML = sideStatsHtml(
         countHits(yShots), yShots.length, countHits(eShots), eShots.length
       );
-      battleRounds.textContent = "Золотой раунд " + (pic.round || 1);
+      if (battleRounds) battleRounds.textContent = "Золотой раунд " + (pic.round || 1);
     } else {
       const view = msg.view || {};
       const st = view.stats || {};
@@ -370,11 +370,11 @@
       bbEnemyTitle.textContent = "Флот врага";
       renderReveal(rpOwn, view.your_ships, view.enemy_shots);
       renderReveal(rpEnemy, view.enemy_ships, view.your_shots);
-      bbStats.innerHTML = sideStatsHtml(
+      if (bbStats) bbStats.innerHTML = sideStatsHtml(
         st.your_hits || 0, st.your_shots || 0,
         st.enemy_hits || 0, st.enemy_shots || 0
       );
-      battleRounds.textContent =
+      if (battleRounds) battleRounds.textContent =
         "Раундов: " + (st.rounds || 0) +
         (st.tiebreak_rounds ? " · «Золотых»: " + st.tiebreak_rounds : "");
     }
@@ -386,7 +386,7 @@
       Sound.play(msg.you_won ? "win" : "lose");
       battleCard.classList.add(msg.you_won ? "win" : "lose");
       $("battle-title").textContent = msg.you_won ? "ПОБЕДА!" : "ПОРАЖЕНИЕ";
-      battleResult.textContent = msg.you_won
+      if (battleResult) battleResult.textContent = msg.you_won
         ? (msg.mode === "tiebreak" ? "Вы выиграли «Золотой раунд»." : "Флот врага уничтожен.")
         : (msg.mode === "tiebreak" ? "Вы проиграли «Золотой раунд»." : "Ваш флот уничтожен.");
       $("battle-count").textContent = "";
@@ -401,7 +401,7 @@
       const isDraw = !!msg.draw;
       if (isDraw) battleCard.classList.add("draw");
       $("battle-title").textContent = isDraw ? "НИЧЬЯ" : "⚓ Боевой отчёт";
-      battleResult.textContent = "";
+      if (battleResult) battleResult.textContent = "";
       $("battle-exit").style.display = "none";
       $("battle-note").textContent = isDraw
         ? "Оба флота уничтожены — «Золотой раунд»"
@@ -545,7 +545,12 @@
     ws = new WebSocket(proto + "://" + location.host + "/ws");
     ws.onopen = () => { lobbyStatus.textContent = "Подключено."; };
     ws.onmessage = (ev) => {
-      try { handleMessage(JSON.parse(ev.data)); } catch (e) {}
+      try {
+        handleMessage(JSON.parse(ev.data));
+      } catch (e) {
+        // Не глотаем молча: одна ошибка не должна «вешать» весь экран.
+        console.error("SeaBlitz: ошибка обработки сообщения", e);
+      }
     };
     ws.onclose = () => {
       lobbyStatus.textContent = "Соединение закрыто. Обновите страницу.";

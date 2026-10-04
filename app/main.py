@@ -15,6 +15,19 @@ app = FastAPI(title="SeaBlitz")
 manager = RoomManager()
 
 
+@app.middleware("http")
+async def revalidate_static(request, call_next):
+    """Запрещаем эвристическое кеширование статики.
+
+    Иначе браузер/Telegram могут надолго закешировать старый ``app.js`` и
+    подгрузить его вместе с новым ``index.html`` — рассинхрон ломает экран
+    результата. С ``no-cache`` клиент ревалидирует файлы по ETag.
+    """
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/api/health")
 async def health() -> dict:
     return {"ok": True, "rooms": len(manager.rooms)}
