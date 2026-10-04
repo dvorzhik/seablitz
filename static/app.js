@@ -947,7 +947,18 @@
     return new Blob([arr], { type: mime });
   }
 
-  function shareGame() {
+  async function createShareLink(image, title, text) {
+    const resp = await fetch("/api/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: image, title: title, text: text }),
+    });
+    if (!resp.ok) throw new Error("share " + resp.status);
+    const data = await resp.json();
+    return data && data.url ? data.url : "";
+  }
+
+  async function shareGame() {
     Sound.play("select");
     const url = shareUrl || "https://t.me/seablitz_bot";
     const me = roomPlayers.find((p) => p && p.slot === mySlot) || null;
@@ -956,30 +967,48 @@
     const winnerText =
       playerLabel(youWon ? me : foe) + " победил " + playerLabel(youWon ? foe : me);
     const footer = "Сыграй в SeaBlitz ⚓ — если ты настоящий морской волк";
-    const caption = winnerText + "\n\n" + footer + "\n" + url;
 
-    // Пытаемся приложить красивую картинку с итогами боя.
-    let file = null;
+    let dataUrl = null;
     try {
-      const blob = dataUrlToBlob(buildShareImageDataUrl(winnerText));
-      const f = new File([blob], "seablitz.png", { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [f] })) file = f;
+      dataUrl = buildShareImageDataUrl(winnerText);
     } catch (e) {
       console.error("SeaBlitz: не удалось собрать картинку", e);
     }
 
-    if (file && navigator.share) {
-      navigator.share({ files: [file], text: caption }).catch(() => {});
-      return;
+    // 1) Системное «Поделиться» с картинкой — если платформа это умеет.
+    if (dataUrl && navigator.share) {
+      try {
+        const file = new File(
+          [dataUrlToBlob(dataUrl)], "seablitz.png", { type: "image/png" }
+        );
+        await navigator.share({
+          files: [file],
+          text: winnerText + "\n\n" + footer + "\n" + url,
+        });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return;  // пользователь закрыл «Поделиться»
+        // иначе — уходим на ссылку с OG-превью ниже
+      }
     }
 
-    // Запасной вариант — ссылка с текстом (без картинки).
+    // 2) Запасной путь: грузим картинку на сервер и делимся ссылкой с превью.
+    let pageUrl = url;
+    if (dataUrl) {
+      try {
+        const link = await createShareLink(dataUrl, winnerText, footer);
+        if (link) pageUrl = link;
+      } catch (e) {
+        console.error("SeaBlitz: не удалось загрузить картинку", e);
+      }
+    }
     const shareLink =
-      "https://t.me/share/url?url=" + encodeURIComponent(url) +
+      "https://t.me/share/url?url=" + encodeURIComponent(pageUrl) +
       "&text=" + encodeURIComponent(winnerText + "\n\n" + footer);
     if (tg && tg.openTelegramLink) tg.openTelegramLink(shareLink);
-    else if (navigator.share) navigator.share({ text: caption }).catch(() => {});
-    else window.open(shareLink, "_blank");
+    else if (navigator.share) {
+      navigator.share({ text: winnerText + "\n\n" + footer + "\n" + pageUrl }).catch(() => {});
+    } else window.open(shareLink, "_blank");
   }
   battleShare.addEventListener("click", shareGame);
 
