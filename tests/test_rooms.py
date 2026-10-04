@@ -351,6 +351,46 @@ def test_bot_fires_in_tiebreak_when_it_readies_last(monkeypatch):
     asyncio.run(scenario())
 
 
+def test_clean_profile():
+    from app.net.rooms import clean_profile
+
+    assert clean_profile(None) == {}
+    assert clean_profile("nope") == {}
+    assert clean_profile(
+        {"username": "  bob ", "name": "Bob", "photo_url": "https://t/a.jpg"}
+    ) == {"username": "bob", "name": "Bob", "photo_url": "https://t/a.jpg"}
+    assert clean_profile({"photo_url": "javascript:alert(1)"}) == {}
+    assert clean_profile({"username": "x" * 99})["username"] == "x" * 32
+
+
+def test_state_includes_player_profiles_and_bot(monkeypatch):
+    monkeypatch.setattr("app.net.rooms.BOT_MIN_DELAY", 0.01)
+    monkeypatch.setattr("app.net.rooms.BOT_MAX_DELAY", 0.02)
+
+    async def scenario():
+        manager = RoomManager()
+        ws = FakeWS()
+        manager.conns[ws] = Conn(
+            ws=ws,
+            profile={"username": "vasya", "photo_url": "https://t/v.png"},
+        )
+        room = await manager.play_bot(ws)
+        state = next(m for m in ws.sent if m["type"] == "state")
+        players = {p["slot"]: p for p in state["players"]}
+
+        assert players[room.bot_slot]["is_bot"] is True
+        assert players[room.bot_slot]["username"] == "Cap'nBot"
+        me_slot = 0 if room.bot_slot == 1 else 1
+        assert players[me_slot]["username"] == "vasya"
+        assert players[me_slot]["photo_url"] == "https://t/v.png"
+        assert players[me_slot]["is_bot"] is False
+        room._cancel_timer()
+        room._cancel_bot()
+        room._cancel_bot_ready()
+
+    asyncio.run(scenario())
+
+
 def test_join_by_code_leaves_queue():
     async def scenario():
         manager = RoomManager()

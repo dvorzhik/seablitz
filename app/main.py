@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
-from app.net.rooms import Conn, RoomManager
+from app.net.rooms import Conn, RoomManager, clean_profile
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -63,12 +63,14 @@ async def handle_message(ws: WebSocket, msg: dict) -> None:
     if mtype == "join":
         if conn.room is not None:
             return
+        conn.profile = clean_profile(msg.get("user"))
         code = str(msg.get("code") or "").strip().upper()[:8] or "LOBBY"
         await manager.join_by_code(ws, code)
 
     elif mtype == "quickmatch":
         if conn.room is not None:
             return
+        conn.profile = clean_profile(msg.get("user"))
         await manager.enqueue(ws)
 
     elif mtype == "cancel":
@@ -80,6 +82,7 @@ async def handle_message(ws: WebSocket, msg: dict) -> None:
     elif mtype == "play_bot":
         if conn.room is not None:
             return
+        conn.profile = clean_profile(msg.get("user"))
         await manager.play_bot(ws)
 
     elif mtype == "volley":

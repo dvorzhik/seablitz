@@ -7,6 +7,16 @@
     play() {}, unlock() {}, toggle() { return false; }, muted: true,
   };
 
+  // Профиль из initData — отправляем на сервер, чтобы соперник увидел @username и аватар.
+  const tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
+  const myProfile = tgUser
+    ? {
+        username: tgUser.username || null,
+        name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || null,
+        photo_url: tgUser.photo_url || null,
+      }
+    : null;
+
   const $ = (id) => document.getElementById(id);
   const screens = { lobby: $("lobby"), game: $("game") };
   const battleOverlay = $("battle");
@@ -45,11 +55,14 @@
   const bbStatsUs = $("bb-stats-us");
   const bbStatsThem = $("bb-stats-them");
   const bbStatsOt = $("bb-stats-ot");
+  const bbWhoEnemy = $("bb-who-enemy");
+  const bbWhoMe = $("bb-who-me");
   const battleResult = $("battle-result");
 
   let ws = null;
   let mySlot = null;
   let roomCode = null;
+  let roomPlayers = [];
   let shotsPerRound = 3;
   let selectable = false;
   const selected = new Set();
@@ -345,6 +358,33 @@
     );
   }
 
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+
+  // Карточка игрока справа от поля: аватар + @username (у бота — пиратский флаг).
+  function whoCard(player, tone) {
+    if (!player) return "";
+    const label = player.username ? "@" + player.username : (player.name || "игрок");
+    let avatar;
+    if (player.is_bot) {
+      avatar = "🏴‍☠️";
+    } else if (player.photo_url) {
+      avatar = '<img class="who-img" src="' + esc(player.photo_url) +
+        '" alt="" referrerpolicy="no-referrer">';
+    } else {
+      avatar = esc((player.username || player.name || "?").charAt(0).toUpperCase());
+    }
+    return (
+      '<div class="who-card ' + (tone || "") + '">' +
+      '<span class="who-avatar">' + avatar + "</span>" +
+      '<span class="who-name">' + esc(label) + "</span>" +
+      "</div>"
+    );
+  }
+
   // Картина сражения. final => экран результата: картина основного боя,
   // либо (если решил овертайм) расклад «Золотого раунда».
   function showBattle(msg) {
@@ -383,6 +423,11 @@
         sideLine("Ваши попадания", st.your_hits || 0, st.your_shots || 0, "good");
       if (bbStatsThem) bbStatsThem.innerHTML =
         sideLine("Попадания врага", st.enemy_hits || 0, st.enemy_shots || 0, "bad");
+      // Справа — кто есть кто: напротив флота врага соперник, напротив своего — вы.
+      const me = roomPlayers.find((p) => p && p.slot === mySlot) || null;
+      const foe = roomPlayers.find((p) => p && p.slot !== mySlot) || null;
+      if (bbWhoEnemy) bbWhoEnemy.innerHTML = whoCard(foe, "foe");
+      if (bbWhoMe) bbWhoMe.innerHTML = whoCard(me, "me");
       if (battleRounds) battleRounds.textContent =
         "Раундов: " + (st.rounds || 0) +
         (st.tiebreak_rounds ? " · «Золотых»: " + st.tiebreak_rounds : "");
@@ -475,6 +520,8 @@
       case "state":
         showScreen("game");
         hideOverlays();
+        if (msg.slot != null) mySlot = msg.slot;
+        roomPlayers = msg.players || [];
         renderOwn(msg.view);
         renderEnemy(msg.view);
         updateScore(msg.view);
@@ -584,7 +631,7 @@
     searching = true;
     updateLobbyState();
     lobbyStatus.textContent = "Ищем соперника…";
-    send({ type: "quickmatch" });
+    send({ type: "quickmatch", user: myProfile });
   });
 
   btnCancel.addEventListener("click", () => {
@@ -596,7 +643,7 @@
 
   btnBot.addEventListener("click", () => {
     lobbyStatus.textContent = "Готовим тренировочный бой…";
-    send({ type: "play_bot" });
+    send({ type: "play_bot", user: myProfile });
   });
 
   btnInviteCancel.addEventListener("click", () => {
@@ -615,7 +662,7 @@
 
   $("btn-create").addEventListener("click", () => {
     lobbyStatus.textContent = "Создаём комнату…";
-    send({ type: "join", code: randomCode(4) });
+    send({ type: "join", code: randomCode(4), user: myProfile });
   });
 
   function inviteLink() {
@@ -657,7 +704,7 @@
   $("btn-join").addEventListener("click", () => {
     const code = ($("code-input").value || "").trim().toUpperCase();
     if (!code) { lobbyStatus.textContent = "Введите код комнаты."; return; }
-    send({ type: "join", code: code });
+    send({ type: "join", code: code, user: myProfile });
   });
 
   $("battle-exit").addEventListener("click", () => {
@@ -699,7 +746,7 @@
   connect();
   if (startParam) {
     setTimeout(
-      () => send({ type: "join", code: String(startParam).toUpperCase().slice(0, 8) }),
+      () => send({ type: "join", code: String(startParam).toUpperCase().slice(0, 8), user: myProfile }),
       300
     );
   }

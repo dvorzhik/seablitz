@@ -43,6 +43,27 @@ def share_url() -> str:
     return f"https://t.me/{settings.bot_username or 'seablitz_bot'}"
 
 
+# Профиль бота-соперника: у бота нет initData — показываем @Cap'nBot и флаг.
+BOT_PROFILE = {"username": "Cap'nBot", "name": None, "photo_url": None, "is_bot": True}
+
+
+def clean_profile(raw: object) -> dict:
+    """Нормализует профиль игрока из initData (username / имя / аватар)."""
+    if not isinstance(raw, dict):
+        return {}
+    profile: dict = {}
+    username = raw.get("username")
+    if isinstance(username, str) and username.strip():
+        profile["username"] = username.strip()[:32]
+    name = raw.get("name")
+    if isinstance(name, str) and name.strip():
+        profile["name"] = name.strip()[:48]
+    photo = raw.get("photo_url")
+    if isinstance(photo, str) and photo.startswith("http"):
+        profile["photo_url"] = photo[:600]
+    return profile
+
+
 async def safe_send(ws: WebSocket, payload: dict) -> None:
     """Отправка, которая не роняет комнату из-за закрытого сокета."""
     try:
@@ -58,6 +79,7 @@ class Conn:
     ws: WebSocket
     room: Optional["Room"] = None
     slot: Optional[int] = None
+    profile: Optional[dict] = None
 
 
 class Room:
@@ -83,6 +105,7 @@ class Room:
         self._gate_goto: Optional[str] = None
         self.rematch_requests: set = set()
         self.bot_slot: Optional[int] = None
+        self.profiles: Dict[int, dict] = {}
         self._bot_task: Optional[asyncio.Task] = None
         self._bot_ready_task: Optional[asyncio.Task] = None
 
@@ -97,17 +120,36 @@ class Room:
     def full(self) -> bool:
         return len(self._occupied_slots()) >= self.config.players
 
-    def add_player(self, ws: WebSocket) -> int:
+    def add_player(self, ws: WebSocket, profile: Optional[dict] = None) -> int:
         occupied = self._occupied_slots()
         slot = 0 if 0 not in occupied else 1
         self.sockets[slot] = ws
+        if profile:
+            self.profiles[slot] = dict(profile)
         return slot
 
     def add_bot(self) -> int:
         occupied = self._occupied_slots()
         slot = 0 if 0 not in occupied else 1
         self.bot_slot = slot
+        self.profiles[slot] = dict(BOT_PROFILE)
         return slot
+
+    def _players_payload(self) -> List[dict]:
+        """Публичные профили слотов — чтобы показать «кто с кем играет»."""
+        players: List[dict] = []
+        for slot in sorted(self._occupied_slots()):
+            profile = self.profiles.get(slot, {})
+            players.append(
+                {
+                    "slot": slot,
+                    "username": profile.get("username"),
+                    "name": profile.get("name"),
+                    "photo_url": profile.get("photo_url"),
+                    "is_bot": slot == self.bot_slot,
+                }
+            )
+        return players
 
     def _new_match(self) -> None:
         """(Пере)создаёт матч — используется при старте и реванше."""
@@ -127,6 +169,7 @@ class Room:
                     "type": "state",
                     "code": self.code,
                     "slot": slot,
+                    "players": self._players_payload(),
                     "view": self.match.view_for(slot),
                 },
             )
@@ -515,6 +558,7 @@ class Room:
                     "type": "state",
                     "code": self.code,
                     "slot": slot,
+                    "players": self._players_payload(),
                     "view": self.match.view_for(slot),
                 },
             )
@@ -617,8 +661,9 @@ class RoomManager:
         self._search_timers[ws] = asyncio.create_task(runner())
 
     async def _place(self, room: Room, ws: WebSocket) -> int:
-        slot = room.add_player(ws)
         conn = self.conns.get(ws)
+        profile = conn.profile if conn is not None else None
+        slot = room.add_player(ws, profile)
         if conn is not None:
             conn.room = room
             conn.slot = slot
