@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
   <link rel="apple-touch-icon" href="favicon-180.png">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <div id="app">
@@ -90,13 +90,16 @@
         <h2 id="battle-title">⚓ Боевой отчёт</h2>
         <div id="battle-rounds" class="battle-rounds"></div>
 
-        <div id="bb-main" class="battle-main">
-          <div id="bb-stats" class="battle-side"></div>
-          <div class="battle-boards">
+        <div id="bb-main" class="battle-rows">
+          <div class="battle-row">
+            <div id="bb-stats-us" class="battle-side"></div>
             <div class="board-block">
               <h3 id="bb-enemy-title">Флот врага</h3>
               <div id="rp-enemy" class="grid battle"></div>
             </div>
+          </div>
+          <div class="battle-row">
+            <div id="bb-stats-them" class="battle-side"></div>
             <div class="board-block own">
               <h3 id="bb-own-title">Ваш флот</h3>
               <div id="rp-own" class="grid battle"></div>
@@ -156,7 +159,7 @@
       </svg>
     </div>
   </div>
-  <script src="sound.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="sound.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

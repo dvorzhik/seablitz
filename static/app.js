@@ -42,7 +42,8 @@
   const scoreUs = $("score-us");
   const scoreThem = $("score-them");
   const battleRounds = $("battle-rounds");
-  const bbStats = $("bb-stats");
+  const bbStatsUs = $("bb-stats-us");
+  const bbStatsThem = $("bb-stats-them");
   const bbStatsOt = $("bb-stats-ot");
   const battleResult = $("battle-result");
 
@@ -328,13 +329,19 @@
     });
   }
 
-  // Колонка статистики слева от полей: попадания наши и противника.
+  // Строка статистики: подпись + число (наши попадания — зелёные, врага — красные).
+  function sideLine(label, hits, shots, tone) {
+    return (
+      '<div class="side-line"><span class="side-label">' + label + '</span>' +
+      '<span class="side-value ' + tone + '">' + hits + "/" + shots + "</span></div>"
+    );
+  }
+
+  // Обе строки подряд (для общего поля овертайма).
   function sideStatsHtml(yourHits, yourShots, enemyHits, enemyShots) {
     return (
-      '<div class="side-line"><span class="side-label">Ваши попадания</span>' +
-      '<span class="side-value good">' + yourHits + "/" + yourShots + "</span></div>" +
-      '<div class="side-line"><span class="side-label">Попадания врага</span>' +
-      '<span class="side-value bad">' + enemyHits + "/" + enemyShots + "</span></div>"
+      sideLine("Ваши попадания", yourHits, yourShots, "good") +
+      sideLine("Попадания врага", enemyHits, enemyShots, "bad")
     );
   }
 
@@ -370,10 +377,12 @@
       bbEnemyTitle.textContent = "Флот врага";
       renderReveal(rpOwn, view.your_ships, view.enemy_shots);
       renderReveal(rpEnemy, view.enemy_ships, view.your_shots);
-      if (bbStats) bbStats.innerHTML = sideStatsHtml(
-        st.your_hits || 0, st.your_shots || 0,
-        st.enemy_hits || 0, st.enemy_shots || 0
-      );
+      // Подписи слева напротив своих полей: враг (сверху) — наши попадания,
+      // наш флот (снизу) — попадания врага.
+      if (bbStatsUs) bbStatsUs.innerHTML =
+        sideLine("Ваши попадания", st.your_hits || 0, st.your_shots || 0, "good");
+      if (bbStatsThem) bbStatsThem.innerHTML =
+        sideLine("Попадания врага", st.enemy_hits || 0, st.enemy_shots || 0, "bad");
       if (battleRounds) battleRounds.textContent =
         "Раундов: " + (st.rounds || 0) +
         (st.tiebreak_rounds ? " · «Золотых»: " + st.tiebreak_rounds : "");

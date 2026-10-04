@@ -220,6 +220,17 @@ button:disabled { opacity: .4; }
 .battle-side .side-value.good { color: #57d96a; }
 .battle-side .side-value.bad { color: #ff7a6a; }
 
+/* Результат: флот врага сверху, наш — снизу. Размер полей прежний,
+   подписи о попаданиях слева напротив соответствующего поля. */
+.battle-rows { display: flex; flex-direction: column; gap: 14px; }
+.battle-row { display: flex; align-items: center; gap: 10px; }
+.battle-row h3 { font-size: 11px; opacity: .8; margin: 0 0 5px; }
+.battle-row .battle-side { flex: 0 0 76px; padding-top: 0; }
+.battle-row .board-block,
+.battle-row .board-block.own {
+  flex: 0 0 auto; width: calc((100% - 86px) / 2); max-width: none; margin: 0;
+}
+
 /* Поля результата — на 25% компактнее игровых (клетки меньше, без скролла). */
 .grid.battle { gap: 4px; }
 .grid.battle .cell { border-radius: 5px; font-size: 11px; }
