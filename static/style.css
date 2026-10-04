@@ -208,10 +208,20 @@ button:disabled { opacity: .4; }
 .banner.draw { color: #dbeaf5; text-shadow: 0 0 14px rgba(170, 205, 235, .75); }
 .battle-main { display: flex; align-items: flex-start; gap: 8px; }
 .battle-boards { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
-.battle-boards.one { grid-template-columns: 1fr; justify-items: center; }
+.battle-boards.one { grid-template-columns: 1fr; }
 .battle-boards h3 { font-size: 11px; opacity: .8; margin: 0 0 5px; }
 .battle-boards .board-block,
 .battle-boards .board-block.own { max-width: none; margin: 0; }
+
+/* «Золотой раунд»: слева — попадания, в центре — поле, справа — вы и соперник. */
+#bb-ot { display: flex; align-items: flex-start; gap: 8px; }
+#bb-ot .battle-boards { flex: 1 1 auto; }
+#bb-ot .board-block,
+#bb-ot .board-block.own { width: 100%; max-width: none; margin: 0; }
+#bb-who-ot {
+  flex: 0 0 78px; width: auto; align-self: center;
+  position: static; transform: none; gap: 12px;
+}
 .grid.small .cell { border-radius: 6px; font-size: 12px; }
 
 /* Слева от полей — статистика попаданий (числа свои и противника). */

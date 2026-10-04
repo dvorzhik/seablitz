@@ -55,6 +55,7 @@
   const bbStatsUs = $("bb-stats-us");
   const bbStatsThem = $("bb-stats-them");
   const bbStatsOt = $("bb-stats-ot");
+  const bbWhoOt = $("bb-who-ot");
   const bbWhoEnemy = $("bb-who-enemy");
   const bbWhoMe = $("bb-who-me");
   const battleResult = $("battle-result");
@@ -406,6 +407,10 @@
       if (bbStatsOt) bbStatsOt.innerHTML = sideStatsHtml(
         countHits(yShots), yShots.length, countHits(eShots), eShots.length
       );
+      // Справа: сверху — вы, под вами — соперник.
+      const meOt = roomPlayers.find((p) => p && p.slot === mySlot) || null;
+      const foeOt = roomPlayers.find((p) => p && p.slot !== mySlot) || null;
+      if (bbWhoOt) bbWhoOt.innerHTML = whoCard(meOt, "me") + whoCard(foeOt, "foe");
       if (battleRounds) battleRounds.textContent = "Золотой раунд " + (pic.round || 1);
     } else {
       const view = msg.view || {};
