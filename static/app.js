@@ -1,7 +1,17 @@
 (function () {
   "use strict";
 
-  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  // telegram-web-app.js создаёт window.Telegram.WebApp ДАЖЕ в обычном браузере
+  // (platform="unknown", initData=""). Поэтому проверяем реальные признаки Mini App,
+  // иначе в вебе ошибочно включается телеграм-ветка: не спрашивается имя и ссылки
+  // открываются в текущем окне, «убивая» игру.
+  const telegramWebApp = (window.Telegram && window.Telegram.WebApp) || null;
+  const isTelegram = !!(
+    telegramWebApp &&
+    (telegramWebApp.initData ||
+      (telegramWebApp.platform && telegramWebApp.platform !== "unknown"))
+  );
+  const tg = isTelegram ? telegramWebApp : null;
   if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
   const Sound = window.Sound || {
     play() {}, unlock() {}, toggle() { return false; }, muted: true,
@@ -9,7 +19,7 @@
 
   // Профиль из initData — отправляем на сервер, чтобы соперник увидел @username и аватар.
   const tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
-  const myProfile = tgUser
+  const tgProfile = tgUser
     ? {
         username: tgUser.username || null,
         name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || null,
@@ -59,21 +69,47 @@
   const bbWhoEnemy = $("bb-who-enemy");
   const bbWhoMe = $("bb-who-me");
   const battleResult = $("battle-result");
-  // Профиль для сервера: в Telegram берём из initData, в браузере — введённое имя.
+  // Профиль для сервера: в Telegram — из initData, в браузере — введённое имя.
   // Соперник увидит его в боевом отчёте (иначе был бы просто «игрок»).
-  const nameRow = $("name-row");
-  const nameInput = $("name-input");
-  if (!tg && nameRow) {
-    nameRow.hidden = false;
-    try { nameInput.value = localStorage.getItem("seablitz_name") || ""; } catch (e) {}
-    nameInput.addEventListener("change", () => {
-      try { localStorage.setItem("seablitz_name", nameInput.value.trim().slice(0, 24)); } catch (e) {}
-    });
+  const nameModal = $("name-modal");
+  const nameField = $("name-field");
+  let pendingAction = null;
+
+  function savedName() {
+    try { return (localStorage.getItem("seablitz_name") || "").trim().slice(0, 24); }
+    catch (e) { return ""; }
   }
   function currentProfile() {
-    if (myProfile) return myProfile;
-    const name = nameInput ? nameInput.value.trim().slice(0, 24) : "";
+    if (tgProfile) return tgProfile;
+    const name = savedName();
     return name ? { name: name } : null;
+  }
+  function showNameModal() {
+    if (!nameModal) return;
+    nameField.value = savedName();
+    nameModal.classList.add("active");
+    setTimeout(() => { try { nameField.focus(); } catch (e) {} }, 60);
+  }
+  function hideNameModal() {
+    if (nameModal) nameModal.classList.remove("active");
+  }
+  function submitName() {
+    const name = nameField ? nameField.value.trim().slice(0, 24) : "";
+    try { localStorage.setItem("seablitz_name", name); } catch (e) {}
+    hideNameModal();
+    const action = pendingAction;
+    pendingAction = null;
+    if (action) action();
+  }
+  // В браузере спрашиваем имя перед действием, если оно ещё не задано.
+  function requireName(action) {
+    if (isTelegram || savedName()) { action(); return; }
+    pendingAction = action;
+    showNameModal();
+  }
+  if (nameField) {
+    $("name-ok").addEventListener("click", submitName);
+    nameField.addEventListener("keydown", (e) => { if (e.key === "Enter") submitName(); });
   }
 
   let ws = null;
@@ -659,10 +695,12 @@
   });
 
   $("btn-quick").addEventListener("click", () => {
-    searching = true;
-    updateLobbyState();
-    lobbyStatus.textContent = "Ищем соперника…";
-    send({ type: "quickmatch", user: currentProfile() });
+    requireName(() => {
+      searching = true;
+      updateLobbyState();
+      lobbyStatus.textContent = "Ищем соперника…";
+      send({ type: "quickmatch", user: currentProfile() });
+    });
   });
 
   btnCancel.addEventListener("click", () => {
@@ -673,8 +711,10 @@
   });
 
   btnBot.addEventListener("click", () => {
-    lobbyStatus.textContent = "Готовим тренировочный бой…";
-    send({ type: "play_bot", user: currentProfile() });
+    requireName(() => {
+      lobbyStatus.textContent = "Готовим тренировочный бой…";
+      send({ type: "play_bot", user: currentProfile() });
+    });
   });
 
   btnInviteCancel.addEventListener("click", () => {
@@ -692,8 +732,10 @@
   }
 
   $("btn-create").addEventListener("click", () => {
-    lobbyStatus.textContent = "Создаём комнату…";
-    send({ type: "join", code: randomCode(4), user: currentProfile() });
+    requireName(() => {
+      lobbyStatus.textContent = "Создаём комнату…";
+      send({ type: "join", code: randomCode(4), user: currentProfile() });
+    });
   });
 
   // Ссылка внутри Telegram: открывает полноэкранный Mini App нужной комнаты.
@@ -716,19 +758,31 @@
     return "⚔️ Вызываю на морскую дуэль SeaBlitz! Открой ссылку и вступай:";
   }
 
+  // Открыть внешнюю ссылку в отдельном окне/вкладке, не теряя игру.
+  // window.open синхронно из клика + запасной вариант через <a target="_blank">.
+  function openNewTab(url) {
+    let w = null;
+    try { w = window.open(url, "_blank", "noopener"); } catch (e) {}
+    if (!w) {
+      try {
+        const a = document.createElement("a");
+        a.href = url; a.target = "_blank"; a.rel = "noopener";
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch (e) {}
+    }
+  }
+
   function shareWhatsApp() {
     if (!roomCode) return;
     Sound.play("select");
     const link = inviteWebLink();
-    const text = inviteText() + " " + link;
-    // Сначала нативный шир (в нём обычно есть WhatsApp), иначе — прямой wa.me.
-    if (navigator.share) {
-      navigator.share({ title: "SeaBlitz", text: inviteText(), url: link }).catch(() => {
-        window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
-      });
-      return;
+    const waUrl = "https://wa.me/?text=" + encodeURIComponent(inviteText() + " " + link);
+    // Внутри Telegram открываем во внешнем браузере (tg.openLink) — Mini App не
+    // закрывается. В обычном браузере — новая вкладка, игра остаётся открытой.
+    if (tg && tg.openLink) {
+      try { tg.openLink(waUrl, { try_instant_view: false }); return; } catch (e) {}
     }
-    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+    openNewTab(waUrl);
   }
 
   function copyInviteLink() {
@@ -767,7 +821,7 @@
   $("btn-join").addEventListener("click", () => {
     const code = ($("code-input").value || "").trim().toUpperCase();
     if (!code) { lobbyStatus.textContent = "Введите код комнаты."; return; }
-    send({ type: "join", code: code, user: currentProfile() });
+    requireName(() => send({ type: "join", code: code, user: currentProfile() }));
   });
 
   $("battle-exit").addEventListener("click", () => {
@@ -1092,11 +1146,19 @@
     .toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
   const autoJoinCode = String(startParam).toUpperCase().slice(0, 8) || urlRoom;
   connect();
-  if (autoJoinCode) {
+  const joinByCode = () => {
     lobbyStatus.textContent = "Подключаемся к комнате " + autoJoinCode + "…";
     setTimeout(
       () => send({ type: "join", code: autoJoinCode, user: currentProfile() }),
       300
     );
+  };
+  if (autoJoinCode) {
+    // Пришли по ссылке-вызову: в браузере без имени сначала спросим его, потом вступаем.
+    if (!isTelegram && !savedName()) { pendingAction = joinByCode; showNameModal(); }
+    else joinByCode();
+  } else if (!isTelegram && !savedName()) {
+    // Обычный заход в вебе: сразу просим имя, чтобы соперник видел игрока, а не «игрок».
+    showNameModal();
   }
 })();

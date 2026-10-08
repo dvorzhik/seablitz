@@ -46,10 +46,6 @@
 
       <button id="btn-bot">🤖 Играть с ботом</button>
 
-      <div id="name-row" class="row" hidden>
-        <input id="name-input" placeholder="Ваше имя (для соперника)" maxlength="24" autocomplete="off">
-      </div>
-
       <div class="btn-row">
         <button id="btn-create" class="primary big">⚔️ Создать вызов</button>
         <button id="btn-invite-cancel" class="ghost" hidden>✖ Отменить вызов</button>
@@ -161,6 +157,16 @@
         </ul>
         <div id="ot-count" class="count"></div>
         <button id="ot-start" class="primary">Начать</button>
+      </div>
+    </section>
+
+    <section id="name-modal" class="overlay">
+      <div class="result-card">
+        <div class="ot-badge">⚓</div>
+        <h2>Как вас зовут?</h2>
+        <p>Это имя увидит соперник в боевом отчёте.</p>
+        <input id="name-field" class="name-field" placeholder="Ваше имя" maxlength="24" autocomplete="off">
+        <button id="name-ok" class="primary">Продолжить</button>
       </div>
     </section>
 

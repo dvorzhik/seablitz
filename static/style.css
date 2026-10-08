@@ -64,7 +64,11 @@ button:disabled { opacity: .4; }
   border-radius: 12px; padding: 12px; font-size: 16px; text-transform: uppercase;
 }
 #btn-bot { width: 100%; margin-top: 10px; }
-#name-input { text-transform: none; }
+.name-field {
+  width: 100%; background: #12314a; border: 1px solid #24506b; color: var(--text);
+  border-radius: 12px; padding: 12px; font-size: 16px; margin-bottom: 14px; text-align: center;
+}
+#name-ok { width: 100%; }
 #invite-box { margin-top: 4px; }
 .invite-hint { text-align: center; font-size: 14px; margin-top: 10px; opacity: .85; }
 .invite-hint b { font-size: 20px; letter-spacing: 3px; color: var(--accent); }
