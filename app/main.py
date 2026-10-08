@@ -134,6 +134,41 @@ async def share_image(token: str) -> Response:
     return Response(content=data, media_type="image/png")
 
 
+# ---- Красивая карточка-вызов для мессенджеров (WhatsApp и др.) ---------------
+# Ссылка /room/<CODE> отдаёт OG-превью (WhatsApp покажет картинку с заголовком)
+# и сразу ведёт в игру. Работает и без Telegram: игрок с обычной ссылкой попадает
+# в комнату во внутреннем/обычном браузере — сервер комнат про Telegram не знает.
+@app.get("/room/{code}", response_class=HTMLResponse)
+async def room_invite(code: str, request: Request) -> HTMLResponse:
+    code = "".join(ch for ch in code.upper() if ch.isalnum())[:8]
+    base = _public_base(request)
+    play = f"{base}/?room={code}"
+    image = f"{base}/pirates.jpg"
+    title = "⚔️ Тебя вызывают на морскую дуэль SeaBlitz!"
+    desc = f"Код комнаты: {code}. Морской бой 5×5 за 1–2 минуты. Нажми и играй!"
+    return HTMLResponse(
+        "<!doctype html><html lang='ru'><head><meta charset='utf-8'>"
+        f"<title>{html.escape(title)}</title>"
+        f"<meta property='og:title' content='{html.escape(title)}'>"
+        f"<meta property='og:description' content='{html.escape(desc)}'>"
+        f"<meta property='og:image' content='{image}'>"
+        f"<meta property='og:url' content='{base}/room/{code}'>"
+        "<meta property='og:type' content='website'>"
+        "<meta name='twitter:card' content='summary_large_image'>"
+        f"<meta http-equiv='refresh' content='0;url={play}'>"
+        "<style>body{margin:0;background:#0b1e2d;color:#e8f1f8;padding:40px 16px;"
+        "font-family:-apple-system,Segoe UI,Roboto,sans-serif;text-align:center}"
+        "a{display:inline-block;margin-top:18px;padding:14px 22px;background:#2ea6ff;"
+        "color:#06222f;border-radius:12px;font-weight:700;text-decoration:none}</style>"
+        "</head><body>"
+        "<h2>⚓ SeaBlitz</h2>"
+        f"<p>Тебя вызывают на дуэль! Код комнаты: <b>{html.escape(code)}</b></p>"
+        f"<a href='{play}'>Начать бой</a>"
+        f"<script>location.replace('{play}')</script>"
+        "</body></html>"
+    )
+
+
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket) -> None:
     await ws.accept()

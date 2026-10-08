@@ -64,7 +64,13 @@ button:disabled { opacity: .4; }
   border-radius: 12px; padding: 12px; font-size: 16px; text-transform: uppercase;
 }
 #btn-bot { width: 100%; margin-top: 10px; }
+#name-input { text-transform: none; }
+#invite-box { margin-top: 4px; }
+.invite-hint { text-align: center; font-size: 14px; margin-top: 10px; opacity: .85; }
+.invite-hint b { font-size: 20px; letter-spacing: 3px; color: var(--accent); }
 #btn-invite { width: 100%; margin-top: 10px; min-height: 48px; }
+.invite-btn { display: block; width: 100%; margin-top: 10px; min-height: 48px; }
+#btn-whatsapp.wa { background: #25d366; color: #06222f; font-weight: 700; }
 .btn-row { display: flex; gap: 8px; margin-top: 10px; }
 .btn-row button { min-height: 48px; white-space: nowrap; }
 .btn-row .primary { flex: 1 1 auto; }

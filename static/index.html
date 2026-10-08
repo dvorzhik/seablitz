@@ -46,12 +46,21 @@
 
       <button id="btn-bot">🤖 Играть с ботом</button>
 
+      <div id="name-row" class="row" hidden>
+        <input id="name-input" placeholder="Ваше имя (для соперника)" maxlength="24" autocomplete="off">
+      </div>
+
       <div class="btn-row">
         <button id="btn-create" class="primary big">⚔️ Создать вызов</button>
         <button id="btn-invite-cancel" class="ghost" hidden>✖ Отменить вызов</button>
       </div>
 
-      <button id="btn-invite" class="primary invite-btn" hidden>📨 Отправить вызов</button>
+      <div id="invite-box" hidden>
+        <div class="invite-hint">Код комнаты: <b id="room-code"></b></div>
+        <button id="btn-invite" class="primary invite-btn">📨 Отправить вызов</button>
+        <button id="btn-whatsapp" class="invite-btn wa" hidden>🟢 Отправить в WhatsApp</button>
+        <button id="btn-copy" class="ghost invite-btn">🔗 Скопировать ссылку</button>
+      </div>
 
       <div class="row" hidden>
         <input id="code-input" placeholder="КОД КОМНАТЫ" maxlength="8" autocomplete="off">

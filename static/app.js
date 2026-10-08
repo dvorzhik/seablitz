@@ -59,6 +59,22 @@
   const bbWhoEnemy = $("bb-who-enemy");
   const bbWhoMe = $("bb-who-me");
   const battleResult = $("battle-result");
+  // Профиль для сервера: в Telegram берём из initData, в браузере — введённое имя.
+  // Соперник увидит его в боевом отчёте (иначе был бы просто «игрок»).
+  const nameRow = $("name-row");
+  const nameInput = $("name-input");
+  if (!tg && nameRow) {
+    nameRow.hidden = false;
+    try { nameInput.value = localStorage.getItem("seablitz_name") || ""; } catch (e) {}
+    nameInput.addEventListener("change", () => {
+      try { localStorage.setItem("seablitz_name", nameInput.value.trim().slice(0, 24)); } catch (e) {}
+    });
+  }
+  function currentProfile() {
+    if (myProfile) return myProfile;
+    const name = nameInput ? nameInput.value.trim().slice(0, 24) : "";
+    return name ? { name: name } : null;
+  }
 
   let ws = null;
   let mySlot = null;
@@ -161,7 +177,15 @@
   function updateLobbyState() {
     const inRoom = !!roomCode;
     btnCancel.hidden = !searching;
-    $("btn-invite").hidden = !inRoom;
+    const inviteBox = $("invite-box");
+    if (inviteBox) inviteBox.hidden = !inRoom;
+    if (inRoom) {
+      const codeEl = $("room-code");
+      if (codeEl) codeEl.textContent = roomCode.toUpperCase();
+      const waBtn = $("btn-whatsapp");
+      // В вебе кнопка «Отправить вызов» и так ведёт в WhatsApp — дублирующую прячем.
+      if (waBtn) waBtn.hidden = !tg;
+    }
     btnInviteCancel.hidden = !inRoom;
     const busy = inRoom || searching;
     btnQuick.disabled = busy;
@@ -638,7 +662,7 @@
     searching = true;
     updateLobbyState();
     lobbyStatus.textContent = "Ищем соперника…";
-    send({ type: "quickmatch", user: myProfile });
+    send({ type: "quickmatch", user: currentProfile() });
   });
 
   btnCancel.addEventListener("click", () => {
@@ -650,7 +674,7 @@
 
   btnBot.addEventListener("click", () => {
     lobbyStatus.textContent = "Готовим тренировочный бой…";
-    send({ type: "play_bot", user: myProfile });
+    send({ type: "play_bot", user: currentProfile() });
   });
 
   btnInviteCancel.addEventListener("click", () => {
@@ -669,34 +693,48 @@
 
   $("btn-create").addEventListener("click", () => {
     lobbyStatus.textContent = "Создаём комнату…";
-    send({ type: "join", code: randomCode(4), user: myProfile });
+    send({ type: "join", code: randomCode(4), user: currentProfile() });
   });
 
-  function inviteLink() {
+  // Ссылка внутри Telegram: открывает полноэкранный Mini App нужной комнаты.
+  function inviteTelegramLink() {
     const base = shareUrl || "https://t.me/seablitz_bot";
     return roomCode
       ? base + "?startapp=" + encodeURIComponent(roomCode.toUpperCase())
       : base;
   }
 
-  function inviteFriend() {
-    if (!roomCode) return;
-    const link = inviteLink();
-    const text =
-      "⚔️ Вызываю на морскую дуэль SeaBlitz! Код комнаты: " +
-      roomCode.toUpperCase();
-    Sound.play("select");
+  // Веб-ссылка-вызов: работает в любом браузере (в т.ч. без Telegram).
+  // /room/<CODE> отдаёт OG-превью для мессенджера и ведёт прямо в комнату.
+  function inviteWebLink() {
+    return roomCode
+      ? location.origin + "/room/" + roomCode.toUpperCase()
+      : location.origin;
+  }
 
-    // Telegram: нативный диалог «Поделиться» (выбор чата → отправка ссылки).
-    if (tg && tg.openTelegramLink) {
-      tg.openTelegramLink(
-        "https://t.me/share/url?url=" + encodeURIComponent(link) +
-        "&text=" + encodeURIComponent(text)
-      );
+  function inviteText() {
+    return "⚔️ Вызываю на морскую дуэль SeaBlitz! Открой ссылку и вступай:";
+  }
+
+  function shareWhatsApp() {
+    if (!roomCode) return;
+    Sound.play("select");
+    const link = inviteWebLink();
+    const text = inviteText() + " " + link;
+    // Сначала нативный шир (в нём обычно есть WhatsApp), иначе — прямой wa.me.
+    if (navigator.share) {
+      navigator.share({ title: "SeaBlitz", text: inviteText(), url: link }).catch(() => {
+        window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+      });
       return;
     }
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+  }
 
-    // Браузер: копируем ссылку-вызов.
+  function copyInviteLink() {
+    if (!roomCode) return;
+    Sound.play("select");
+    const link = inviteWebLink();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(link).then(
         () => { lobbyStatus.textContent = "Ссылка-вызов скопирована: " + link; },
@@ -706,12 +744,30 @@
       lobbyStatus.textContent = "Ссылка-вызов: " + link;
     }
   }
+
+  function inviteFriend() {
+    if (!roomCode) return;
+    // В Telegram — нативный диалог «Поделиться» с Mini App-ссылкой;
+    // в обычном браузере — сразу WhatsApp с веб-ссылкой.
+    if (tg && tg.openTelegramLink) {
+      Sound.play("select");
+      const link = inviteTelegramLink();
+      tg.openTelegramLink(
+        "https://t.me/share/url?url=" + encodeURIComponent(link) +
+        "&text=" + encodeURIComponent(inviteText() + " " + link)
+      );
+      return;
+    }
+    shareWhatsApp();
+  }
   $("btn-invite").addEventListener("click", inviteFriend);
+  $("btn-whatsapp").addEventListener("click", shareWhatsApp);
+  $("btn-copy").addEventListener("click", copyInviteLink);
 
   $("btn-join").addEventListener("click", () => {
     const code = ($("code-input").value || "").trim().toUpperCase();
     if (!code) { lobbyStatus.textContent = "Введите код комнаты."; return; }
-    send({ type: "join", code: code, user: myProfile });
+    send({ type: "join", code: code, user: currentProfile() });
   });
 
   $("battle-exit").addEventListener("click", () => {
@@ -1030,11 +1086,16 @@
     window.addEventListener(ev, () => Sound.unlock(), { once: true })
   );
 
+  // Код комнаты может прийти из Telegram (start_param) или из веб-ссылки (?room=CODE).
   const startParam = tg && tg.initDataUnsafe ? (tg.initDataUnsafe.start_param || "") : "";
+  const urlRoom = (new URLSearchParams(location.search).get("room") || "")
+    .toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+  const autoJoinCode = String(startParam).toUpperCase().slice(0, 8) || urlRoom;
   connect();
-  if (startParam) {
+  if (autoJoinCode) {
+    lobbyStatus.textContent = "Подключаемся к комнате " + autoJoinCode + "…";
     setTimeout(
-      () => send({ type: "join", code: String(startParam).toUpperCase().slice(0, 8), user: myProfile }),
+      () => send({ type: "join", code: autoJoinCode, user: currentProfile() }),
       300
     );
   }
