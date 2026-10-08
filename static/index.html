@@ -17,6 +17,7 @@
       <h1>⚓ SeaBlitz</h1>
       <div class="head-right">
         <div id="room-info" hidden></div>
+        <button id="btn-name" class="icon" title="Изменить имя" hidden>🖊 Имя</button>
         <button id="btn-sound" class="icon" title="Звук">🔊</button>
       </div>
     </header>
@@ -52,7 +53,6 @@
       </div>
 
       <div id="invite-box" hidden>
-        <div class="invite-hint">Код комнаты: <b id="room-code"></b></div>
         <button id="btn-invite" class="primary invite-btn">✈️ Отправить вызов в Telegram</button>
         <button id="btn-whatsapp" class="invite-btn wa">🟢 Отправить вызов в WhatsApp</button>
         <button id="btn-copy" class="ghost invite-btn">🔗 Скопировать ссылку вызова</button>
@@ -62,7 +62,10 @@
         <input id="code-input" placeholder="КОД КОМНАТЫ" maxlength="8" autocomplete="off">
         <button id="btn-join">Войти</button>
       </div>
-      <div id="lobby-status" class="status"></div>
+      <div id="lobby-status" class="status">
+        <span id="lobby-status-text"></span>
+        <span id="lobby-code" hidden></span>
+      </div>
     </section>
 
     <section id="game" class="screen">

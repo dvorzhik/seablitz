@@ -54,7 +54,8 @@
   const timerText = $("timer-text");
   const fireBtn = $("btn-fire");
   const selectedCount = $("selected-count");
-  const lobbyStatus = $("lobby-status");
+  const lobbyStatus = $("lobby-status-text");
+  const lobbyCode = $("lobby-code");
   const roomInfo = $("room-info");
   const enemyTitle = $("enemy-title");
   const hintEl = $("hint");
@@ -110,6 +111,17 @@
   if (nameField) {
     $("name-ok").addEventListener("click", submitName);
     nameField.addEventListener("keydown", (e) => { if (e.key === "Enter") submitName(); });
+  }
+  // Маленькая кнопка «Изменить имя» рядом со звуком — только в вебе
+  // (в Telegram имя берётся из профиля и не редактируется здесь).
+  const btnName = $("btn-name");
+  if (btnName) {
+    if (isTelegram) {
+      btnName.hidden = true;
+    } else {
+      btnName.hidden = false;
+      btnName.addEventListener("click", () => { pendingAction = null; showNameModal(); });
+    }
   }
 
   let ws = null;
@@ -215,9 +227,9 @@
     btnCancel.hidden = !searching;
     const inviteBox = $("invite-box");
     if (inviteBox) inviteBox.hidden = !inRoom;
-    if (inRoom) {
-      const codeEl = $("room-code");
-      if (codeEl) codeEl.textContent = roomCode.toUpperCase();
+    if (lobbyCode) {
+      lobbyCode.textContent = inRoom ? roomCode.toUpperCase() : "";
+      lobbyCode.hidden = !inRoom;
     }
     btnInviteCancel.hidden = !inRoom;
     const busy = inRoom || searching;
@@ -423,22 +435,12 @@
     );
   }
 
-  // Карточка игрока справа от поля: аватар + @username (у бота — пиратский флаг).
+  // Карточка игрока справа от поля: имя в рамке (цвет зависит от роли).
   function whoCard(player, tone) {
     if (!player) return "";
     const label = player.username ? "@" + player.username : (player.name || "игрок");
-    let avatar;
-    if (player.is_bot) {
-      avatar = '<img class="who-img" src="pirates.jpg?v=7" alt="">';
-    } else if (player.photo_url) {
-      avatar = '<img class="who-img" src="' + esc(player.photo_url) +
-        '" alt="" referrerpolicy="no-referrer">';
-    } else {
-      avatar = esc((player.username || player.name || "?").charAt(0).toUpperCase());
-    }
     return (
       '<div class="who-card ' + (tone || "") + '">' +
-      '<span class="who-avatar">' + avatar + "</span>" +
       '<span class="who-name">' + esc(label) + "</span>" +
       "</div>"
     );

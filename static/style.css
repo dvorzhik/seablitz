@@ -70,8 +70,7 @@ button:disabled { opacity: .4; }
 }
 #name-ok { width: 100%; }
 #invite-box { margin-top: 4px; }
-.invite-hint { text-align: center; font-size: 14px; margin-top: 10px; opacity: .85; }
-.invite-hint b { font-size: 20px; letter-spacing: 3px; color: var(--accent); }
+.invite-hint { display: none; }
 #btn-invite { width: 100%; margin-top: 10px; min-height: 48px; }
 .invite-btn { display: block; width: 100%; margin-top: 10px; min-height: 48px; }
 #btn-whatsapp.wa { background: #25d366; color: #06222f; font-weight: 700; }
@@ -99,7 +98,12 @@ button:disabled { opacity: .4; }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
-.status { margin-top: 14px; min-height: 20px; font-size: 14px; opacity: .8; }
+.status {
+  margin-top: 14px; min-height: 20px; font-size: 14px; opacity: .8;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+}
+#lobby-status-text { flex: 1 1 auto; }
+#lobby-code { flex: 0 0 auto; white-space: nowrap; letter-spacing: 2px; color: var(--accent); }
 
 .banner { min-height: 22px; font-size: 15px; font-weight: 600; text-align: center; margin: 6px 0; }
 
@@ -254,18 +258,19 @@ button:disabled { opacity: .4; }
 .battle-row .board-block.own {
   flex: 0 0 auto; width: calc((100% - 86px) / 2); max-width: none; margin: 0;
 }
-/* Справа от каждого поля — кто это: аватар + @username (у бота — флаг). */
+/* Справа от каждого поля — кто это: имя в рамке (цвет зависит от роли). */
 .battle-who {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   width: 82px; display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
-.battle-who .who-avatar {
-  width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
-  background: #1d3d54; border: 1px solid #2b5a78;
-  display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+.battle-who .who-card {
+  max-width: 100%; text-align: center; padding: 5px 7px;
+  border: 1.5px solid #2b5a78; border-radius: 10px;
+  background: rgba(29, 61, 84, .45);
 }
-.battle-who .who-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.battle-who .who-name { font-size: 10.5px; line-height: 1.15; overflow-wrap: anywhere; opacity: .9; }
+.battle-who .who-card.foe { border-color: #ffd76a; }
+.battle-who .who-card.me { border-color: #9fd0ff; }
+.battle-who .who-name { font-size: 10.5px; line-height: 1.15; overflow-wrap: anywhere; opacity: .95; }
 .battle-who .who-card.foe .who-name { color: #ffd76a; }
 .battle-who .who-card.me .who-name { color: #9fd0ff; }
 

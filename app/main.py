@@ -143,7 +143,7 @@ async def room_invite(code: str, request: Request) -> HTMLResponse:
     code = "".join(ch for ch in code.upper() if ch.isalnum())[:8]
     base = _public_base(request)
     play = f"{base}/?room={code}"
-    image = f"{base}/welcome.png"
+    image = f"{base}/avatar.png"
     title = "⚔️ Тебя вызывают на морскую дуэль SeaBlitz!"
     desc = f"Код комнаты: {code}. Морской бой 5×5 за 1–2 минуты. Нажми и играй!"
     return HTMLResponse(
@@ -152,8 +152,8 @@ async def room_invite(code: str, request: Request) -> HTMLResponse:
         f"<meta property='og:title' content='{html.escape(title)}'>"
         f"<meta property='og:description' content='{html.escape(desc)}'>"
         f"<meta property='og:image' content='{image}'>"
-        "<meta property='og:image:width' content='640'>"
-        "<meta property='og:image:height' content='360'>"
+        "<meta property='og:image:width' content='512'>"
+        "<meta property='og:image:height' content='512'>"
         f"<meta property='og:url' content='{base}/room/{code}'>"
         "<meta property='og:type' content='website'>"
         "<meta name='twitter:card' content='summary_large_image'>"
