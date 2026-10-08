@@ -218,9 +218,6 @@
     if (inRoom) {
       const codeEl = $("room-code");
       if (codeEl) codeEl.textContent = roomCode.toUpperCase();
-      const waBtn = $("btn-whatsapp");
-      // В вебе кнопка «Отправить вызов» и так ведёт в WhatsApp — дублирующую прячем.
-      if (waBtn) waBtn.hidden = !tg;
     }
     btnInviteCancel.hidden = !inRoom;
     const busy = inRoom || searching;
@@ -801,18 +798,19 @@
 
   function inviteFriend() {
     if (!roomCode) return;
-    // В Telegram — нативный диалог «Поделиться» с Mini App-ссылкой;
-    // в обычном браузере — сразу WhatsApp с веб-ссылкой.
+    Sound.play("select");
+    const link = inviteTelegramLink();
+    // Диалог «Поделиться» в Telegram: выбор чата → отправка карточки-вызова.
+    const shareUrl =
+      "https://t.me/share/url?url=" + encodeURIComponent(link) +
+      "&text=" + encodeURIComponent(inviteText() + " " + link);
+    // Внутри Telegram — нативный диалог (Mini App остаётся открыт).
     if (tg && tg.openTelegramLink) {
-      Sound.play("select");
-      const link = inviteTelegramLink();
-      tg.openTelegramLink(
-        "https://t.me/share/url?url=" + encodeURIComponent(link) +
-        "&text=" + encodeURIComponent(inviteText() + " " + link)
-      );
+      tg.openTelegramLink(shareUrl);
       return;
     }
-    shareWhatsApp();
+    // В вебе открываем Telegram-шаринг в отдельном окне/вкладке — игра не закрывается.
+    openNewTab(shareUrl);
   }
   $("btn-invite").addEventListener("click", inviteFriend);
   $("btn-whatsapp").addEventListener("click", shareWhatsApp);
