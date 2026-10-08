@@ -829,14 +829,7 @@
     location.reload();
   });
 
-  // ---------- Картинка с итогами боя для кнопки «Поделиться победой» ----------
-  let piratesImg = null;
-  (function preloadPirates() {
-    const im = new Image();
-    im.onload = () => { piratesImg = im; };
-    im.src = "pirates.jpg?v=7";
-  })();
-
+  // ---------- Итоговая картинка для кнопки «Поделиться победой» ----------
   function playerLabel(p) {
     if (!p) return "игрок";
     return p.username ? "@" + p.username : (p.name || "игрок");
@@ -942,35 +935,39 @@
     if (line) ctx.fillText(line, x, ly);
   }
 
-  function drawAvatar(ctx, cx, cy, player, img) {
-    const R = 46;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fillStyle = "#1d3d54";
-    ctx.fill();
-    ctx.clip();
-    if (img) {
-      ctx.drawImage(img, cx - R, cy - R, R * 2, R * 2);
-    } else {
-      ctx.fillStyle = "#cfe4f4";
-      ctx.font = "bold 46px 'Segoe UI', Roboto, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText((player.username || player.name || "?").charAt(0).toUpperCase(), cx, cy);
-      ctx.textBaseline = "alphabetic";
+  // Карточка игрока в шарещейся картинке: имя в рамке (цвет — роль).
+  function drawWhoCard(ctx, cx, cy, player, color) {
+    const label = playerLabel(player);
+    const font = "22px 'Segoe UI', Roboto, sans-serif";
+    ctx.font = font;
+    const maxW = 150;
+    const words = String(label).split(" ");
+    const lines = [];
+    let line = "";
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+      else line = test;
     }
-    ctx.restore();
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#2b5a78";
+    if (line) lines.push(line);
+    const lineH = 26, padX = 14, padY = 10;
+    let textW = 0;
+    lines.forEach((l) => { textW = Math.max(textW, ctx.measureText(l).width); });
+    const boxW = Math.min(maxW + padX * 2, textW + padX * 2);
+    const boxH = lines.length * lineH + padY * 2;
+    const x = cx - boxW / 2;
+    const y = cy - boxH / 2;
+    rr(ctx, x, y, boxW, boxH, 12);
+    ctx.fillStyle = "rgba(13, 36, 55, .85)";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = color;
     ctx.stroke();
-    ctx.fillStyle = "#eaf4ff";
-    ctx.font = "24px 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = color;
     ctx.textAlign = "center";
-    ctx.fillText(playerLabel(player), cx, cy + R + 32);
+    ctx.textBaseline = "middle";
+    lines.forEach((l, i) => ctx.fillText(l, cx, y + padY + lineH * i + lineH / 2));
+    ctx.textBaseline = "alphabetic";
   }
 
   function buildShareImageDataUrl(winnerText) {
@@ -1013,6 +1010,8 @@
     const foe = roomPlayers.find((p) => p && p.slot !== mySlot) || null;
     const boards = shareBoards(msg);
     const avatars = tie ? [me] : [foe, me];
+    // Рамки: соперник — красная, игрок — зелёная (как в счёте).
+    const frameColors = tie ? ["#57d96a"] : ["#ff7a6a", "#57d96a"];
     const statLines = tie
       ? [null]
       : [
@@ -1041,7 +1040,7 @@
         ctx.fillText(s.value, 24, top + 250);
       }
       const p = avatars[i];
-      if (p) drawAvatar(ctx, W - 100, top + 150, p, p.is_bot ? piratesImg : null);
+      if (p) drawWhoCard(ctx, W - 100, top + 150, p, frameColors[i]);
       top += boardSize + 116;
     }
 

@@ -268,11 +268,11 @@ button:disabled { opacity: .4; }
   border: 1.5px solid #2b5a78; border-radius: 10px;
   background: rgba(29, 61, 84, .45);
 }
-.battle-who .who-card.foe { border-color: #ffd76a; }
-.battle-who .who-card.me { border-color: #9fd0ff; }
+.battle-who .who-card.foe { border-color: #ff7a6a; }
+.battle-who .who-card.me { border-color: #57d96a; }
 .battle-who .who-name { font-size: 10.5px; line-height: 1.15; overflow-wrap: anywhere; opacity: .95; }
-.battle-who .who-card.foe .who-name { color: #ffd76a; }
-.battle-who .who-card.me .who-name { color: #9fd0ff; }
+.battle-who .who-card.foe .who-name { color: #ff7a6a; }
+.battle-who .who-card.me .who-name { color: #57d96a; }
 
 /* Поля результата — на 25% компактнее игровых (клетки меньше, без скролла). */
 .grid.battle { gap: 4px; }
