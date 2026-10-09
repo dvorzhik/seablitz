@@ -771,30 +771,66 @@
     }
   }
 
+  // Открыть внешнюю ссылку, не закрывая игру/Mini App: внутри Telegram — через
+  // WebApp.openLink (открывает системный браузер), иначе — новую вкладку.
+  function openExternal(url) {
+    if (tg && typeof tg.openLink === "function") {
+      try { tg.openLink(url); return; } catch (e) {}
+    }
+    openNewTab(url);
+  }
+
   function shareWhatsApp() {
     if (!roomCode) return;
     Sound.play("select");
     const link = inviteWebLink();
     const waUrl = "https://wa.me/?text=" + encodeURIComponent(inviteText() + " " + link);
-    // Внутри Telegram открываем во внешнем браузере (tg.openLink) — Mini App не
-    // закрывается. В обычном браузере — новая вкладка, игра остаётся открытой.
-    if (tg && tg.openLink) {
-      try { tg.openLink(waUrl, { try_instant_view: false }); return; } catch (e) {}
+    // Внутри Telegram на мобильных надёжнее нативный share-sheet (в нём есть
+    // WhatsApp), чем tg.openLink: тот открывает wa.me во встроенном браузере
+    // Telegram и не всегда запускает приложение WhatsApp.
+    if (tg && navigator.share) {
+      navigator.share({ title: "SeaBlitz", text: inviteText(), url: link }).catch((err) => {
+        // Закрытие шторки самим пользователем — не ошибка, ничего не делаем.
+        if (err && err.name === "AbortError") return;
+        openExternal(waUrl);
+      });
+      return;
     }
-    openNewTab(waUrl);
+    // Десктоп (Telegram/веб) — wa.me во внешнем браузере / новой вкладке.
+    openExternal(waUrl);
   }
 
   function copyInviteLink() {
     if (!roomCode) return;
     Sound.play("select");
     const link = inviteWebLink();
+    const done = () => { lobbyStatus.textContent = "Ссылка-вызов скопирована: " + link; };
+    const manual = () => { lobbyStatus.textContent = "Ссылка-вызов: " + link; };
+    // Запасной путь: скрытый textarea + execCommand("copy"). Нужен внутри Telegram,
+    // где Clipboard API запрещён (iframe без права clipboard-write) и промис падает.
+    const legacyCopy = () => {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = link;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.top = "-1000px";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, link.length);
+        const ok = document.execCommand("copy");
+        ta.remove();
+        ok ? done() : manual();
+      } catch (e) {
+        manual();
+      }
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(link).then(
-        () => { lobbyStatus.textContent = "Ссылка-вызов скопирована: " + link; },
-        () => { lobbyStatus.textContent = "Ссылка-вызов: " + link; }
-      );
+      navigator.clipboard.writeText(link).then(done, legacyCopy);
     } else {
-      lobbyStatus.textContent = "Ссылка-вызов: " + link;
+      legacyCopy();
     }
   }
 
